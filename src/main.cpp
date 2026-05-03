@@ -12,8 +12,8 @@
  *
  *  What this firmware does:
  *    1. Wi-Fi captive portal at 192.168.4.1
- *       (long-press milk button 3+ s → AP "Lyra-Setup-XXXX",
- *        10+ s → wipe saved Wi-Fi + identity).
+ *       (long-press provisioning button (GPIO 13) 3+ s → AP
+ *        "Lyra-Setup-XXXX", 10+ s → wipe saved Wi-Fi + identity).
  *    2. STA auto-connect using saved creds.
  *    3. MAC-driven self-identification — first boot, the firmware
  *       sends its MAC to /api/machine/identify and receives a
@@ -62,6 +62,11 @@ constexpr int PIN_BTN_MILK   = 32;
 constexpr int PIN_BTN_COFFEE = 33;
 constexpr int PIN_BTN_TEA    = 25;
 
+// Dedicated Wi-Fi provisioning button.
+// Wire one leg to this GPIO and the other leg to GND.
+// Hold 3 s+ → captive portal AP. Hold 10 s+ → factory reset.
+constexpr int PIN_BTN_PROV   = 13;
+
 // ────────────────────────────────────────────────────────────────
 //  Recipe timing (ms). Strength = decoction:milk ratio.
 //  Total volume kept roughly constant.
@@ -84,7 +89,7 @@ constexpr unsigned long WIFI_RETRY_MS       = 15000;
 constexpr unsigned long BTN_DEBOUNCE_MS     = 50;
 constexpr unsigned long BTN_LOCKOUT_MS      = 1500;
 
-// Long-press milk button to enter Wi-Fi setup portal
+// Long-press provisioning button to enter Wi-Fi setup portal
 constexpr unsigned long PROV_HOLD_MS        = 3000;
 constexpr unsigned long PROV_RESET_HOLD_MS  = 10000;
 
@@ -153,6 +158,7 @@ void setup() {
   pinMode(PIN_BTN_MILK,   INPUT_PULLUP);
   pinMode(PIN_BTN_COFFEE, INPUT_PULLUP);
   pinMode(PIN_BTN_TEA,    INPUT_PULLUP);
+  pinMode(PIN_BTN_PROV,   INPUT_PULLUP);
   stopAll();
 
   if (!loadSavedCreds()) {
@@ -255,19 +261,19 @@ void wifiEnsure() {
 }
 
 // ================================================================
-//  Long-press detection on milk button → setup portal
+//  Long-press detection on dedicated provisioning button
 // ================================================================
 void checkProvisioningGesture() {
   if (busy) return;
-  if (digitalRead(PIN_BTN_MILK) != LOW) return;
+  if (digitalRead(PIN_BTN_PROV) != LOW) return;
 
   unsigned long pressStart = millis();
-  while (digitalRead(PIN_BTN_MILK) == LOW &&
+  while (digitalRead(PIN_BTN_PROV) == LOW &&
          millis() - pressStart < PROV_RESET_HOLD_MS + 200) {
     delay(20);
   }
   unsigned long held = millis() - pressStart;
-  if (held < PROV_HOLD_MS) return;   // short press → normal flow handles it
+  if (held < PROV_HOLD_MS) return;   // short press — ignore
 
   if (held >= PROV_RESET_HOLD_MS) {
     Serial.println(F("[prov] factory-reset hold — wiping saved Wi-Fi + identity"));
