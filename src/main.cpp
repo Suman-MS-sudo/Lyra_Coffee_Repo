@@ -182,7 +182,18 @@ void setup() {
   // Arm the task watchdog on the loop task. Every iteration of
   // loop() must call esp_task_wdt_reset() within WDT_TIMEOUT_S or
   // the chip reboots — guarantees we never go silent for long.
+  // ESP32 Arduino core 3.x uses a config struct; older 2.x took
+  // (timeout_seconds, panic). Pick at compile time.
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+  esp_task_wdt_config_t wdt_cfg = {
+    .timeout_ms     = WDT_TIMEOUT_S * 1000U,
+    .idle_core_mask = 0,
+    .trigger_panic  = true,
+  };
+  esp_task_wdt_init(&wdt_cfg);
+#else
   esp_task_wdt_init(WDT_TIMEOUT_S, true);
+#endif
   esp_task_wdt_add(NULL);
   lastNetOkAt = millis();
 
