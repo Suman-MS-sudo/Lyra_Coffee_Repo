@@ -47,6 +47,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <esp_task_wdt.h>
 
 // ────────────────────────────────────────────────────────────────
 //  Pin map  (per the user's wiring)
@@ -89,6 +90,22 @@ constexpr unsigned long WIFI_RETRY_MS       = 15000;
 constexpr unsigned long BTN_DEBOUNCE_MS     = 50;
 constexpr unsigned long BTN_LOCKOUT_MS      = 1500;
 
+// Hardware task watchdog. If loop() stops feeding it for this long
+// (e.g. a TLS handshake wedges a whole minute), the chip reboots
+// rather than going silent until someone notices.
+constexpr uint32_t WDT_TIMEOUT_S         = 30;
+
+// Software liveness guard. If neither poll nor heartbeat has
+// succeeded in this window we assume the network stack is wedged
+// and reboot. Five minutes is generous — normal traffic happens
+// every 3 s / 60 s respectively.
+constexpr unsigned long LIVENESS_TIMEOUT_MS = 5UL * 60UL * 1000UL;
+
+// TLS handshake cap (seconds). Without this, WiFiClientSecure can
+// stall indefinitely on a flaky network and HTTPClient::setTimeout
+// won't help — that only covers the read/write phase.
+constexpr uint32_t TLS_HANDSHAKE_TIMEOUT_S = 8;
+
 // Long-press provisioning button to enter Wi-Fi setup portal
 constexpr unsigned long PROV_HOLD_MS        = 3000;
 constexpr unsigned long PROV_RESET_HOLD_MS  = 10000;
@@ -106,6 +123,7 @@ unsigned long lastPollAt    = 0;
 unsigned long lastHeartbeatAt = 0;
 unsigned long lastWifiTry   = 0;
 unsigned long btnLockUntil  = 0;
+unsigned long lastNetOkAt   = 0;   // last successful poll OR heartbeat
 bool          busy          = false;
 bool          portalDone    = false;
 
@@ -161,6 +179,13 @@ void setup() {
   pinMode(PIN_BTN_PROV,   INPUT_PULLUP);
   stopAll();
 
+  // Arm the task watchdog on the loop task. Every iteration of
+  // loop() must call esp_task_wdt_reset() within WDT_TIMEOUT_S or
+  // the chip reboots — guarantees we never go silent for long.
+  esp_task_wdt_init(WDT_TIMEOUT_S, true);
+  esp_task_wdt_add(NULL);
+  lastNetOkAt = millis();
+
   if (!loadSavedCreds()) {
     strlcpy(activeSsid, WIFI_SSID,     sizeof(activeSsid));
     strlcpy(activePass, WIFI_PASSWORD, sizeof(activePass));
@@ -186,6 +211,17 @@ void setup() {
 }
 
 void loop() {
+  esp_task_wdt_reset();
+
+  // Software liveness guard: if we've had no successful network
+  // round-trip in LIVENESS_TIMEOUT_MS, the network stack is wedged.
+  // Reboot rather than sit silent.
+  if (!busy && millis() - lastNetOkAt > LIVENESS_TIMEOUT_MS) {
+    Serial.println(F("[guard] no network activity for too long \u2014 rebooting"));
+    delay(200);
+    ESP.restart();
+  }
+
   checkProvisioningGesture();
   wifiEnsure();
 
@@ -242,7 +278,19 @@ void loop() {
 //  Wi-Fi connection helper
 // ================================================================
 void wifiEnsure() {
-  if (WiFi.status() == WL_CONNECTED) return;
+  static bool announcedConnected = false;
+
+  if (WiFi.status() == WL_CONNECTED) {
+    // Print the IP exactly once after each transition to connected
+    // so the serial log proves STA actually came up on first boot.
+    if (!announcedConnected) {
+      announcedConnected = true;
+      Serial.print(F("[wifi] connected: "));
+      Serial.println(WiFi.localIP());
+    }
+    return;
+  }
+  announcedConnected = false;
   if (millis() - lastWifiTry < WIFI_RETRY_MS) return;
 
   lastWifiTry = millis();
@@ -252,9 +300,11 @@ void wifiEnsure() {
 
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 8000) {
+    esp_task_wdt_reset();
     delay(200);
   }
   if (WiFi.status() == WL_CONNECTED) {
+    announcedConnected = true;
     Serial.print(F("[wifi] connected: "));
     Serial.println(WiFi.localIP());
   }
@@ -489,11 +539,15 @@ static int httpRequest(const char* method, const String& path,
 #if USE_HTTPS
   WiFiClientSecure client;
   client.setInsecure();              // simple TLS — DNS-trust v1
+  // Cap the SSL handshake. Without this the call can wedge for
+  // minutes on a flaky network and starve the watchdog.
+  client.setHandshakeTimeout(TLS_HANDSHAKE_TIMEOUT_S);
 #else
   WiFiClient client;
 #endif
 
   HTTPClient http;
+  http.setConnectTimeout(8000);
   http.setTimeout(8000);
   if (!http.begin(client, baseUrl() + path)) {
     Serial.println(F("[http] begin failed"));
@@ -611,6 +665,7 @@ void pollOnce() {
   int code = httpRequest("GET", "/api/machine/poll", "", body);
   static unsigned long lastQuietLog = 0;
   if (code == 204 || (code == 200 && body.length() < 5)) {
+    lastNetOkAt = millis();
     // Log "no orders" once a minute so the serial console proves
     // polling is alive without flooding it every 3 s.
     if (millis() - lastQuietLog > 60000) {
@@ -623,6 +678,7 @@ void pollOnce() {
     Serial.printf("[poll] HTTP %d body=%s\n", code, body.c_str());
     return;
   }
+  lastNetOkAt = millis();
 
   StaticJsonDocument<512> doc;
   DeserializationError err = deserializeJson(doc, body);
@@ -670,6 +726,7 @@ void ackOrder(const String& orderId, const char* status, const char* error) {
 void sendHeartbeat() {
   String resp;
   int code = httpRequest("POST", "/api/machine/heartbeat", "{}", resp);
+  if (code >= 200 && code < 300) lastNetOkAt = millis();
   Serial.printf("[hb] HTTP %d\n", code);
 }
 
