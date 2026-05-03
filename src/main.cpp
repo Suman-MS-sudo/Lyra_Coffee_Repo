@@ -2,27 +2,42 @@
  * ================================================================
  *  Lyra Coffee Machine — ESP32 Firmware (single-file build)
  *
- *  This ONE file does everything:
- *    1. Wi-Fi captive portal provisioning at 192.168.4.1
+ *  Drop this entire file into the Arduino IDE (or PlatformIO).
+ *  No other source/header files are needed — everything is inline.
+ *
+ *  Required Arduino libraries (Library Manager):
+ *    - ArduinoJson  by Benoit Blanchon  (v6.x)
+ *  Built-in with the ESP32 board package:
+ *    WiFi, WebServer, Preferences, HTTPClient, WiFiClientSecure
+ *
+ *  What this firmware does:
+ *    1. Wi-Fi captive portal at 192.168.4.1
  *       (long-press milk button 3+ s → AP "Lyra-Setup-XXXX",
- *        10+ s → wipe saved Wi-Fi).
- *    2. Wi-Fi STA auto-connect using saved creds (or secrets.h
- *       compile-time fallback).
+ *        10+ s → wipe saved Wi-Fi + identity).
+ *    2. STA auto-connect using saved creds.
  *    3. MAC-driven self-identification — first boot, the firmware
  *       sends its MAC to /api/machine/identify and receives a
- *       unique machine_id + api_key, which it persists in NVS.
- *       The same firmware image works on every machine.
+ *       unique machine_id + api_key (persisted in NVS).
  *    4. Online vending — polls the Lyra backend, runs the matching
  *       motor recipe, ACKs the order.
  *    5. Local buttons — manual/test dispense, always available.
  *
- *  Configuration (one-time, identical for every machine):
- *    cp include/secrets.h.example include/secrets.h
- *    → set SERVER_HOST. Wi-Fi defaults are optional (portal handles
- *      that). MACHINE_ID/MACHINE_KEY are NOT needed — firmware
- *      pulls them from the server based on its MAC.
+ *  Just flash, then in the admin dashboard add a new machine with
+ *  this ESP's MAC address (printed on serial at boot).
  * ================================================================
  */
+
+// ───────────────────────────────────────────────────────────
+//  Configuration — same values for every machine you flash.
+// ───────────────────────────────────────────────────────────
+#define SERVER_HOST     "brew.lyra-app.co.in"
+#define SERVER_PORT     443     // 443 for HTTPS, 80 for plain HTTP
+#define USE_HTTPS       1       // 1 = WiFiClientSecure, 0 = WiFiClient
+
+// Optional fallback Wi-Fi creds (used only if NVS is empty).
+// Leave blank to force the captive portal on first boot.
+#define WIFI_SSID       ""
+#define WIFI_PASSWORD   ""
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -32,7 +47,6 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include "secrets.h"
 
 // ────────────────────────────────────────────────────────────────
 //  Pin map  (per the user's wiring)
