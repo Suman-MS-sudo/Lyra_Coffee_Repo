@@ -172,6 +172,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_coffee_machines_mac_id ON coffee_machines(
 ALTER TABLE coffee_machines
     ADD COLUMN IF NOT EXISTS mac_provisioned_at TIMESTAMPTZ;
 
+-- Updated by /api/machine/poll and /api/machine/heartbeat. Used
+-- to derive the live "online" indicator in the admin dashboard.
+ALTER TABLE coffee_machines
+    ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_coffee_machines_last_seen_at
+    ON coffee_machines(last_seen_at);
+
 -- ================================================================
 --  Row Level Security (RLS)
 --  All tables are locked down. The Next.js server uses the

@@ -79,6 +79,7 @@ constexpr uint16_t FLUSH_MS   = 3000;
 //  Network behaviour
 // ────────────────────────────────────────────────────────────────
 constexpr unsigned long POLL_INTERVAL_MS    = 3000;
+constexpr unsigned long HEARTBEAT_INTERVAL_MS = 60UL * 1000UL;  // explicit ping
 constexpr unsigned long WIFI_RETRY_MS       = 15000;
 constexpr unsigned long BTN_DEBOUNCE_MS     = 50;
 constexpr unsigned long BTN_LOCKOUT_MS      = 1500;
@@ -97,6 +98,7 @@ Preferences prefs;
 WebServer   portalServer(80);
 
 unsigned long lastPollAt    = 0;
+unsigned long lastHeartbeatAt = 0;
 unsigned long lastWifiTry   = 0;
 unsigned long btnLockUntil  = 0;
 bool          busy          = false;
@@ -117,6 +119,7 @@ bool identityReady = false;
 // ────────────────────────────────────────────────────────────────
 void wifiEnsure();
 void pollOnce();
+void sendHeartbeat();
 void ackOrder(const String& orderId, const char* status, const char* error = nullptr);
 void runRecipe(const String& drink, const Recipe& r, bool withMilk);
 void checkProvisioningGesture();
@@ -218,6 +221,14 @@ void loop() {
       }
     }
     pollOnce();
+
+    // Explicit heartbeat once a minute so the dashboard knows we're
+    // alive even when no orders are coming through (poll already
+    // bumps last_seen_at, but a slower cadence is enough here).
+    if (millis() - lastHeartbeatAt > HEARTBEAT_INTERVAL_MS) {
+      lastHeartbeatAt = millis();
+      sendHeartbeat();
+    }
   }
 }
 
@@ -637,6 +648,15 @@ void ackOrder(const String& orderId, const char* status, const char* error) {
   serializeJson(doc, body);
   int code = httpRequest("POST", "/api/machine/ack", body, resp);
   Serial.printf("[ack] HTTP %d\n", code);
+}
+
+// ================================================================
+//  Heartbeat — lightweight liveness ping
+// ================================================================
+void sendHeartbeat() {
+  String resp;
+  int code = httpRequest("POST", "/api/machine/heartbeat", "{}", resp);
+  Serial.printf("[hb] HTTP %d\n", code);
 }
 
 // ================================================================

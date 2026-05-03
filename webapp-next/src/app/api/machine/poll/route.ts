@@ -18,6 +18,12 @@ export async function GET(req: NextRequest) {
   const auth = await authenticateMachine(req);
   if (!auth.ok) return auth.res;
 
+  // Every poll counts as a liveness ping.
+  await supabaseAdmin
+    .from('coffee_machines')
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq('id', auth.machineId);
+
   // Pick oldest paid order for this machine.
   const { data: order, error } = await supabaseAdmin
     .from('coffee_orders')
