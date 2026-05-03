@@ -28,5 +28,14 @@ export async function POST(req: NextRequest) {
     console.error('[machine/heartbeat]', error);
     return apiError('DB error', 500);
   }
-  return Response.json({ ok: true, server_time: now });
+  return Response.json(
+    { ok: true, server_time: now },
+    {
+      headers: {
+        'Cache-Control':                 'no-store',
+        'CDN-Cache-Control':             'no-store',
+        'Cloudflare-CDN-Cache-Control':  'no-store',
+      },
+    },
+  );
 }

@@ -37,11 +37,23 @@ export async function GET(
   const lastMs = data.last_seen_at ? new Date(data.last_seen_at).getTime() : 0;
   const online = lastMs > 0 && Date.now() - lastMs < ONLINE_THRESHOLD_MS;
 
-  return Response.json({
-    id:           data.id,
-    status:       data.status,
-    last_seen_at: data.last_seen_at,
-    online,
-    server_time:  new Date().toISOString(),
-  });
+  return Response.json(
+    {
+      id:           data.id,
+      status:       data.status,
+      last_seen_at: data.last_seen_at,
+      online,
+      server_time:  new Date().toISOString(),
+    },
+    {
+      headers: {
+        // Make sure neither the browser nor Cloudflare ever serves
+        // a stale liveness snapshot — this endpoint must always hit
+        // the origin so the chip flips offline → online promptly.
+        'Cache-Control':         'no-store, no-cache, must-revalidate, max-age=0',
+        'CDN-Cache-Control':     'no-store',
+        'Cloudflare-CDN-Cache-Control': 'no-store',
+      },
+    },
+  );
 }
