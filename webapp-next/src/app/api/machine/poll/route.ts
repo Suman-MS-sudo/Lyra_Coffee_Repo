@@ -84,7 +84,19 @@ export async function GET(req: NextRequest) {
     console.error('[machine/poll] select', error);
     return apiError('DB error', 500);
   }
-  if (!order) return new Response(null, { status: 204 });
+  if (!order) {
+    // Explicit no-store so Cloudflare never caches an empty 204 for
+    // a machine that's actively waiting on a fresh order.
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Cache-Control':                'no-store, no-cache, must-revalidate, max-age=0',
+        'CDN-Cache-Control':            'no-store',
+        'Cloudflare-CDN-Cache-Control': 'no-store',
+      },
+    });
+  }
+  console.log('[machine/poll] delivering', { mid: auth.machineId, order_id: order.id });
 
   // Atomically claim it: only flip paid → dispensing.
   const { data: claimed, error: upErr } = await supabaseAdmin
@@ -97,7 +109,14 @@ export async function GET(req: NextRequest) {
 
   if (upErr || !claimed) {
     // Lost the race — someone else (or another poll) took it.
-    return new Response(null, { status: 204 });
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Cache-Control':                'no-store, no-cache, must-revalidate, max-age=0',
+        'CDN-Cache-Control':            'no-store',
+        'Cloudflare-CDN-Cache-Control': 'no-store',
+      },
+    });
   }
 
   // Log a dispense attempt
