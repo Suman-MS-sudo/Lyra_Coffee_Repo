@@ -167,6 +167,10 @@ ALTER TABLE coffee_machines
     ADD COLUMN IF NOT EXISTS mac_id TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_coffee_machines_mac_id ON coffee_machines(mac_id) WHERE mac_id IS NOT NULL;
 
+-- Set when an ESP32 first claims this row via /api/machine/identify.
+ALTER TABLE coffee_machines
+    ADD COLUMN IF NOT EXISTS mac_provisioned_at TIMESTAMPTZ;
+
 -- ================================================================
 --  Row Level Security (RLS)
 --  All tables are locked down. The Next.js server uses the

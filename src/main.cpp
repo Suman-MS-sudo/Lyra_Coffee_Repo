@@ -8,17 +8,19 @@
  *        10+ s → wipe saved Wi-Fi).
  *    2. Wi-Fi STA auto-connect using saved creds (or secrets.h
  *       compile-time fallback).
- *    3. Online vending — polls the Lyra backend, runs the matching
+ *    3. MAC-driven self-identification — first boot, the firmware
+ *       sends its MAC to /api/machine/identify and receives a
+ *       unique machine_id + api_key, which it persists in NVS.
+ *       The same firmware image works on every machine.
+ *    4. Online vending — polls the Lyra backend, runs the matching
  *       motor recipe, ACKs the order.
- *    4. Local buttons — manual/test dispense, always available.
+ *    5. Local buttons — manual/test dispense, always available.
  *
- *  Drop this into src/main.cpp. Delete src/wifi_provision.* if
- *  they exist — everything lives here now.
- *
- *  Configuration:
- *    cp include/secrets.h.example include/secrets.h, then edit:
- *       MACHINE_ID, MACHINE_KEY, SERVER_HOST,
- *       WIFI_SSID/WIFI_PASSWORD (optional, portal can override).
+ *  Configuration (one-time, identical for every machine):
+ *    cp include/secrets.h.example include/secrets.h
+ *    → set SERVER_HOST. Wi-Fi defaults are optional (portal handles
+ *      that). MACHINE_ID/MACHINE_KEY are NOT needed — firmware
+ *      pulls them from the server based on its MAC.
  * ================================================================
  */
 
@@ -89,6 +91,13 @@ bool          portalDone    = false;
 char activeSsid[33] = {0};
 char activePass[65] = {0};
 
+// Identity — resolved at runtime from the server, NOT compiled in.
+char machineId[40] = {0};   // UUID
+char machineKey[80] = {0};  // 64-hex-char API key
+char machineMac[18] = {0};  // "AA:BB:CC:DD:EE:FF"
+char machineName[64] = {0}; // optional, for logs
+bool identityReady = false;
+
 // ────────────────────────────────────────────────────────────────
 //  Forward declarations
 // ────────────────────────────────────────────────────────────────
@@ -100,7 +109,11 @@ void checkProvisioningGesture();
 void enterProvisioningPortal();
 bool loadSavedCreds();
 void clearSavedCreds();
-
+void readMacAddress(char* out, size_t outLen);
+bool loadIdentity();
+void saveIdentity(const char* id, const char* key, const char* name);
+bool identifyWithServer();
+void clearIdentity();
 void forwardMotor(int a, int b, uint16_t ms);
 void reverseMotor(int a, int b, uint16_t ms);
 void stopMotor(int a, int b);
@@ -130,6 +143,17 @@ void setup() {
     strlcpy(activePass, WIFI_PASSWORD, sizeof(activePass));
   }
   Serial.printf("[boot] using ssid=\"%s\"\n", activeSsid);
+
+  readMacAddress(machineMac, sizeof(machineMac));
+  Serial.printf("[boot] mac=%s\n", machineMac);
+
+  identityReady = loadIdentity();
+  if (identityReady) {
+    Serial.printf("[boot] identity loaded id=%s name=\"%s\"\n",
+                  machineId, machineName);
+  } else {
+    Serial.println(F("[boot] no saved identity — will identify with server"));
+  }
 
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -169,6 +193,16 @@ void loop() {
   if (!busy && WiFi.status() == WL_CONNECTED &&
       millis() - lastPollAt > POLL_INTERVAL_MS) {
     lastPollAt = millis();
+
+    // Self-identify on the first online opportunity.
+    if (!identityReady) {
+      if (!identifyWithServer()) {
+        // Will retry next tick. The server might be down, the row
+        // might not have this MAC yet, or the unit is already
+        // provisioned and an admin needs to reset it.
+        return;
+      }
+    }
     pollOnce();
   }
 }
@@ -211,8 +245,9 @@ void checkProvisioningGesture() {
   if (held < PROV_HOLD_MS) return;   // short press → normal flow handles it
 
   if (held >= PROV_RESET_HOLD_MS) {
-    Serial.println(F("[prov] factory-reset hold — wiping saved Wi-Fi"));
+    Serial.println(F("[prov] factory-reset hold — wiping saved Wi-Fi + identity"));
     clearSavedCreds();
+    clearIdentity();
   } else {
     Serial.println(F("[prov] long-press — entering portal"));
   }
@@ -433,8 +468,16 @@ static int httpRequest(const char* method, const String& path,
     Serial.println(F("[http] begin failed"));
     return -1;
   }
-  http.addHeader("Authorization", String("Bearer ") + MACHINE_KEY);
-  http.addHeader("X-Machine-Id",  MACHINE_ID);
+  // Authenticated calls (poll/ack) use the runtime identity.
+  // The /identify call has no identity yet — leave headers off so
+  // the server's auth helper short-circuits and the route handles
+  // it as a public lookup.
+  if (machineKey[0]) {
+    http.addHeader("Authorization", String("Bearer ") + machineKey);
+  }
+  if (machineId[0]) {
+    http.addHeader("X-Machine-Id", machineId);
+  }
   if (body.length()) http.addHeader("Content-Type", "application/json");
 
   int code;
@@ -444,6 +487,89 @@ static int httpRequest(const char* method, const String& path,
   outBody = http.getString();
   http.end();
   return code;
+}
+
+// ================================================================
+//  Identity (MAC-driven self-provisioning)
+// ================================================================
+void readMacAddress(char* out, size_t outLen) {
+  uint8_t mac[6];
+  WiFi.macAddress(mac);
+  snprintf(out, outLen, "%02X:%02X:%02X:%02X:%02X:%02X",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+bool loadIdentity() {
+  prefs.begin("lyra-id", true);
+  String id   = prefs.getString("id",   "");
+  String key  = prefs.getString("key",  "");
+  String name = prefs.getString("name", "");
+  prefs.end();
+  if (id.length() == 0 || key.length() == 0) return false;
+  strlcpy(machineId,   id.c_str(),   sizeof(machineId));
+  strlcpy(machineKey,  key.c_str(),  sizeof(machineKey));
+  strlcpy(machineName, name.c_str(), sizeof(machineName));
+  return true;
+}
+
+void saveIdentity(const char* id, const char* key, const char* name) {
+  prefs.begin("lyra-id", false);
+  prefs.putString("id",   id);
+  prefs.putString("key",  key);
+  prefs.putString("name", name ? name : "");
+  prefs.end();
+  strlcpy(machineId,   id,            sizeof(machineId));
+  strlcpy(machineKey,  key,           sizeof(machineKey));
+  strlcpy(machineName, name ? name : "", sizeof(machineName));
+}
+
+void clearIdentity() {
+  prefs.begin("lyra-id", false);
+  prefs.clear();
+  prefs.end();
+  machineId[0] = machineKey[0] = machineName[0] = '\0';
+  identityReady = false;
+}
+
+bool identifyWithServer() {
+  StaticJsonDocument<128> req;
+  req["mac_id"] = machineMac;
+  String body, resp;
+  serializeJson(req, body);
+
+  // Temporarily clear stored creds so the helper sends no auth headers.
+  char savedId[40];  strlcpy(savedId,  machineId,  sizeof(savedId));
+  char savedKey[80]; strlcpy(savedKey, machineKey, sizeof(savedKey));
+  machineId[0] = machineKey[0] = '\0';
+
+  int code = httpRequest("POST", "/api/machine/identify", body, resp);
+
+  // Restore in case identify failed.
+  strlcpy(machineId,  savedId,  sizeof(machineId));
+  strlcpy(machineKey, savedKey, sizeof(machineKey));
+
+  if (code < 200 || code >= 300) {
+    Serial.printf("[identify] HTTP %d body=%s\n", code, resp.c_str());
+    return false;
+  }
+
+  StaticJsonDocument<512> doc;
+  if (deserializeJson(doc, resp) != DeserializationError::Ok) {
+    Serial.println(F("[identify] bad JSON"));
+    return false;
+  }
+  const char* id   = doc["id"]      | "";
+  const char* key  = doc["api_key"] | "";
+  const char* name = doc["name"]    | "";
+  if (!id[0] || !key[0]) {
+    Serial.println(F("[identify] missing id/key"));
+    return false;
+  }
+
+  saveIdentity(id, key, name);
+  identityReady = true;
+  Serial.printf("[identify] OK \u2014 id=%s name=\"%s\"\n", id, name);
+  return true;
 }
 
 // ================================================================

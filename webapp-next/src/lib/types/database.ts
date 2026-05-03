@@ -28,6 +28,7 @@ export interface CoffeeMachine {
   price_tea_paise:    number | null;   // null → platform default
   is_free:            boolean;          // true → no payment, dispense for free
   mac_id:       string | null;          // hardware MAC / serial of the ESP32
+  mac_provisioned_at: string | null;    // set when the ESP first claims it
   created_at:   string;
   updated_at:   string;
 }

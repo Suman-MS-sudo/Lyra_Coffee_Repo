@@ -14,6 +14,9 @@ const patchSchema = z.object({
   price_coffee_paise: z.number().int().min(0).max(100_000).nullable().optional(),
   price_tea_paise:    z.number().int().min(0).max(100_000).nullable().optional(),
   mac_id:      z.string().trim().max(64).regex(/^[A-Za-z0-9:_\-]+$/).nullable().optional(),
+  // null clears the timestamp so the next ESP32 to call /identify
+  // with this MAC can re-provision (e.g. after a board swap).
+  reset_provisioning: z.literal(true).optional(),
 });
 
 // ── PATCH /api/admin/machines/[id] ─────────────────────────────
@@ -36,12 +39,17 @@ export async function PATCH(
     return apiError(bodyParsed.error.errors[0]?.message ?? 'Validation failed', 422);
   }
 
+  // Translate the convenience flag into an explicit timestamp clear.
+  const { reset_provisioning, ...rest } = bodyParsed.data;
+  const updates: Record<string, unknown> = { ...rest };
+  if (reset_provisioning) updates.mac_provisioned_at = null;
+
   const { data, error } = await supabaseAdmin
     .from('coffee_machines')
-    .update(bodyParsed.data)
+    .update(updates)
     .eq('id', parsed.data)
     .select(
-      'id, name, location, status, customer_id, is_free, price_coffee_paise, price_tea_paise, mac_id, updated_at',
+      'id, name, location, status, customer_id, is_free, price_coffee_paise, price_tea_paise, mac_id, mac_provisioned_at, updated_at',
     )
     .single();
 
