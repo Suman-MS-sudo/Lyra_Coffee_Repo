@@ -1,0 +1,1033 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lyra Coffee Machine - Complete Build Guide</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 900px; margin: 40px auto; color: #222; }
+h1 { color: #1a3a5c; border-bottom: 3px solid #1a3a5c; padding-bottom: 8px; }
+h2 { color: #1a3a5c; border-bottom: 1px solid #aaa; margin-top: 36px; }
+h3 { color: #2a5a8c; margin-top: 24px; }
+pre, code { background: #f4f4f4; border: 1px solid #ddd; border-radius: 4px; }
+pre { padding: 12px; overflow-x: auto; font-family: Consolas, monospace; font-size: 12px; }
+code { padding: 2px 5px; font-family: Consolas, monospace; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th { background: #1a3a5c; color: white; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border: 1px solid #ccc; }
+tr:nth-child(even) { background: #f9f9f9; }
+blockquote { border-left: 4px solid #e07000; background: #fff8f0; padding: 10px 16px; margin: 16px 0; }
+@media print { body { max-width: 100%; } h2 { page-break-before: always; } pre { white-space: pre-wrap; } }
+</style>
+</head>
+<body>
+<p><em><strong>To create PDF:</strong> Press Ctrl+P in your browser &rarr; Destination: Save as PDF &rarr; Save</em></p>
+<hr>
+<h1>Lyra Coffee Machine — Complete Build Guide</h1>
+
+<p><strong>Version:</strong> 1.0  </p>
+<p><strong>Platform:</strong> ESP32 DevKit C V4  </p>
+<p><strong>Framework:</strong> Arduino (PlatformIO)  </p>
+<p><strong>Display:</strong> ILI9341 2.4&quot; SPI 240&#215;320  </p>
+
+<hr>
+
+<h2>Table of Contents</h2>
+
+<p>1. [Project Overview](#1-project-overview)</p>
+<p>2. [How It Works](#2-how-it-works)</p>
+<p>3. [Complete Components List (BOM)](#3-complete-components-list-bom)</p>
+<p>4. [GPIO Pin Assignment Table](#4-gpio-pin-assignment-table)</p>
+<p>5. [Full Circuit Diagram](#5-full-circuit-diagram)</p>
+<p>6. [Wiring Connection Tables](#6-wiring-connection-tables)</p>
+<p>7. [Display Layout](#7-display-layout)</p>
+<p>8. [Startup Sequence (Detailed)](#8-startup-sequence-detailed)</p>
+<p>9. [Dispense Sequences](#9-dispense-sequences)</p>
+<p>10. [Temperature Control System](#10-temperature-control-system)</p>
+<p>11. [Software Setup](#11-software-setup)</p>
+<p>12. [Mechanical Assembly](#12-mechanical-assembly)</p>
+<p>13. [Testing Procedure](#13-testing-procedure)</p>
+<p>14. [Safety Guidelines](#14-safety-guidelines)</p>
+<p>15. [Troubleshooting](#15-troubleshooting)</p>
+<p>16. [Adjusting Timings &amp; Temperatures](#16-adjusting-timings--temperatures)</p>
+
+<hr>
+
+<h2>1. Project Overview</h2>
+
+<p>The Lyra Coffee Machine is an ESP32-controlled beverage vending machine that automatically prepares four drinks using peristaltic pumps and three independently heated chambers.</p>
+
+<pre><code>
+                    ┌─────────────────────────────────┐
+                    │       LYRA COFFEE MACHINE        │
+                    │                                  │
+                    │  [WATER]  [MILK]  [COFFEE] [TEA] │
+                    │  TANK     TANK    DECOCT   DECOCT│
+                    │   80&#176;C    60&#176;C    30&#176;C     30&#176;C  │
+                    │    ↓        ↓       ↓        ↓   │
+                    │  Pump3   Pump0   Pump1    Pump2  │
+                    │                                  │
+           Buttons→ │  [B1]   [B2]   [B3]   [B4]      │
+                    │  Milk  Coffee   Tea  Hot H2O     │
+                    └─────────────────────────────────┘
+                                    ↓
+                               [Drip Tray]
+</code></pre>
+
+<h3>Drinks Menu</h3>
+
+<table>
+  <tr><th>Button</th><th>Drink</th><th>Pump</th><th>Sequence</th></tr>
+  <tr><td>B1</td><td>Milk Only</td><td>Pump 0</td><td>Reverse 5s → Forward 7s → Reverse 5s</td></tr>
+  <tr><td>B2</td><td>Coffee Decoction</td><td>Pump 1</td><td>Reverse 5s → Forward 3s → Reverse 5s</td></tr>
+  <tr><td>B3</td><td>Tea Decoction</td><td>Pump 2</td><td>Reverse 5s → Forward 3s → Reverse 5s</td></tr>
+  <tr><td>B4</td><td>Hot Water</td><td>Pump 3</td><td>Forward 5s only</td></tr>
+</table>
+
+<hr>
+
+<h2>2. How It Works</h2>
+
+<h3>System Architecture</h3>
+
+<pre><code>
+ESP32 DevKit C V4 (Brain)
+  │
+  ├── L298N #1 ──► Pump 0 (Milk), Pump 1 (Coffee)
+  ├── L298N #2 ──► Pump 2 (Tea),  Pump 3 (Hot Water)
+  ├── SSR #1  ──► Water Heater 500W  (80&#176;C target)
+  ├── SSR #2  ──► Milk Heater  300W  (60&#176;C target)
+  ├── SSR #3  ──► Decoct Heater 200W (30&#176;C target)
+  ├── DS18B20 &#215;3 ── Temperature sensors (OneWire)
+  ├── Float Switch ── Water level detection
+  ├── Solenoid Valve ── Auto water fill
+  ├── ILI9341 TFT ── 2.4&quot; status display
+  ├── Buzzer ── Audio feedback
+  └── 4&#215; Buttons ── Drink selection
+</code></pre>
+
+<h3>Pump Direction Convention</h3>
+
+<p>Peristaltic pumps reverse direction by flipping the L298N H-bridge polarity.</p>
+
+<table>
+  <tr><th>IN1</th><th>IN2</th><th>Motor Action</th></tr>
+  <tr><td>HIGH</td><td>LOW</td><td>Forward (dispense toward nozzle)</td></tr>
+  <tr><td>LOW</td><td>HIGH</td><td>Reverse (suck back / prime)</td></tr>
+  <tr><td>LOW</td><td>LOW</td><td>Stop</td></tr>
+</table>
+
+<hr>
+
+<h2>3. Complete Components List (BOM)</h2>
+
+<h3>A) Core Electronics</h3>
+
+<table>
+  <tr><th>#</th><th>Component</th><th>Specification</th><th>Qty</th><th>Est. Cost</th></tr>
+  <tr><td>1</td><td>ESP32 DevKit C V4</td><td>ESP32-WROOM-32, 38-pin, USB-C or micro-USB</td><td>1</td><td>$7–10</td></tr>
+  <tr><td>2</td><td>L298N Dual H-Bridge Motor Driver</td><td>12V, 2A per channel, onboard 5V regulator</td><td>2</td><td>$3–5 ea</td></tr>
+  <tr><td>3</td><td>12V DC Peristaltic Pump (food-grade)</td><td>100–300 mL/min, self-priming, silicone tubing</td><td>4</td><td>$8–15 ea</td></tr>
+  <tr><td>4</td><td>DS18B20 Waterproof Temp Probe</td><td>Stainless steel probe, 1m cable, pre-wired</td><td>3</td><td>$3–5 ea</td></tr>
+  <tr><td>5</td><td>Solid State Relay SSR-40DA</td><td>3–32V DC in, 24–480V AC out, 40A</td><td>3</td><td>$4–8 ea</td></tr>
+  <tr><td>6</td><td>Aluminium Heat Sink for SSR-40DA</td><td>Rated for 40A SSR — mandatory</td><td>3</td><td>$2–4 ea</td></tr>
+  <tr><td>7</td><td>Heating Element — Water</td><td>220V 500W immersion/cartridge heater</td><td>1</td><td>$8–15</td></tr>
+  <tr><td>8</td><td>Heating Element — Milk</td><td>220V 300W immersion/cartridge heater</td><td>1</td><td>$6–12</td></tr>
+  <tr><td>9</td><td>Heating Element — Decoction</td><td>220V 200W immersion/cartridge heater</td><td>1</td><td>$5–10</td></tr>
+  <tr><td>10</td><td>Thermal Fuse</td><td>100°C (water), 70°C (milk), 45°C (decoction)</td><td>3</td><td>$0.50 ea</td></tr>
+  <tr><td>11</td><td>Float Switch (NO type)</td><td>12V rated, normally-open</td><td>1</td><td>$2–4</td></tr>
+  <tr><td>12</td><td>12V Solenoid Valve NC (food-safe)</td><td>Normally Closed = fail-safe when unpowered</td><td>1</td><td>$7–12</td></tr>
+  <tr><td>13</td><td>12V 5A DC Power Supply</td><td>Powers all 12V components</td><td>1</td><td>$10–15</td></tr>
+  <tr><td>14</td><td>ILI9341 2.4" SPI TFT Display</td><td>240×320 pixels, 3.3V logic</td><td>1</td><td>$6–10</td></tr>
+  <tr><td>15</td><td>Passive Buzzer 5V</td><td>3–5V tone buzzer</td><td>1</td><td>$0.50</td></tr>
+  <tr><td>16</td><td>Momentary Push Button 12mm</td><td>Panel-mount, momentary tactile</td><td>4</td><td>$0.50 ea</td></tr>
+  <tr><td>17</td><td>NPN Transistor BC547 or 2N2222</td><td>General purpose NPN</td><td>1</td><td>$0.20</td></tr>
+</table>
+
+<h3>B) Passive Components</h3>
+
+<table>
+  <tr><th>Component</th><th>Value</th><th>Purpose</th><th>Qty</th></tr>
+  <tr><td>Resistor</td><td>4.7 kΩ 1/4W</td><td>DS18B20 OneWire DATA line pull-up</td><td>1</td></tr>
+  <tr><td>Resistor</td><td>10 kΩ 1/4W</td><td>Button pull-up ×4 (GPIO 34/35/36/39)</td><td>4</td></tr>
+  <tr><td>Resistor</td><td>10 kΩ 1/4W</td><td>SSR input series protection ×3</td><td>3</td></tr>
+  <tr><td>Resistor</td><td>1 kΩ 1/4W</td><td>Transistor base resistor (fill valve)</td><td>1</td></tr>
+  <tr><td>Resistor</td><td>330 Ω 1/4W</td><td>Buzzer series current limiter</td><td>1</td></tr>
+  <tr><td>Resistor</td><td>33 Ω 1/4W</td><td>TFT backlight LED current limiter</td><td>1</td></tr>
+  <tr><td>Diode</td><td>1N4007</td><td>Flyback protection across solenoid coil</td><td>1</td></tr>
+  <tr><td>Capacitor</td><td>100 µF 25V electrolytic</td><td>Bulk decoupling on 12V supply rail</td><td>2</td></tr>
+  <tr><td>Capacitor</td><td>100 nF ceramic</td><td>Bypass near ESP32 3.3V</td><td>4</td></tr>
+  <tr><td>Screw terminal blocks</td><td>2-pin 5mm pitch</td><td>All wire terminations</td><td>14+</td></tr>
+  <tr><td>Prototype PCB / perfboard</td><td>≥ 10×10 cm</td><td>Mount ESP32, resistors, breakouts</td><td>1</td></tr>
+  <tr><td>JST-XH 2/3-pin connectors</td><td>—</td><td>Pump motor quick-disconnect</td><td>8</td></tr>
+  <tr><td>DuPont jumper wires</td><td>M-F, F-F</td><td>Connecting ESP32 to modules</td><td>1 set</td></tr>
+  <tr><td>Heat-shrink tubing</td><td>Assorted 2–6mm</td><td>Insulate all solder joints</td><td>1 pack</td></tr>
+  <tr><td>Cable ties</td><td>100mm and 200mm</td><td>Cable management inside enclosure</td><td>1 pack</td></tr>
+</table>
+
+<h3>C) Mechanical / Enclosure</h3>
+
+<table>
+  <tr><th>Component</th><th>Specification</th><th>Qty</th></tr>
+  <tr><td>Metal enclosure</td><td>Min. 220×180×100mm, IP54 or better</td><td>1</td></tr>
+  <tr><td>Food-grade silicone tubing</td><td>3–4mm ID, 6mm OD — buy ~12 m total</td><td>12 m</td></tr>
+  <tr><td>Liquid containers / chambers</td><td>Stainless steel or food-safe plastic</td><td>3</td></tr>
+  <tr><td>Pump mounting brackets</td><td>3D-print or metal bracket</td><td>4</td></tr>
+  <tr><td>Stainless steel drip tray</td><td>Under dispense nozzles</td><td>1</td></tr>
+  <tr><td>M3 stainless bolts, nuts, standoffs</td><td>PCB and bracket mounting</td><td>1 pack</td></tr>
+  <tr><td>Quick-connect fittings</td><td>Match tubing OD for container inlets</td><td>8</td></tr>
+</table>
+
+<h3>D) Safety / Mains Electrical</h3>
+
+<blockquote>⚠️ These components are MANDATORY. Do not skip any of them.</blockquote>
+
+<table>
+  <tr><th>Component</th><th>Specification</th><th>Qty</th></tr>
+  <tr><td>GFCI / RCD 30mA circuit breaker</td><td>Protects against electric shock</td><td>1</td></tr>
+  <tr><td>Mains panel switch</td><td>SPST, 10A 250V, panel-mount</td><td>1</td></tr>
+  <tr><td>IEC C14 mains inlet</td><td>With integrated fuse holder</td><td>1</td></tr>
+  <tr><td>5A slow-blow fuse</td><td>Machine inlet protection</td><td>2 (1 spare)</td></tr>
+  <tr><td>3-core mains cable</td><td>1.5mm² minimum, L/N/E</td><td>1.5 m</td></tr>
+  <tr><td>Cable glands</td><td>For mains cable entry into enclosure</td><td>2</td></tr>
+  <tr><td>Warning label</td><td>"230V inside — unplug before opening"</td><td>1</td></tr>
+</table>
+
+<h3>E) Budget Summary</h3>
+
+<table>
+  <tr><th>Category</th><th>Estimated Cost (USD)</th></tr>
+  <tr><td>Core electronics</td><td>$60–100</td></tr>
+  <tr><td>Heaters + SSRs + heat sinks</td><td>$30–60</td></tr>
+  <tr><td>Pumps ×4</td><td>$32–60</td></tr>
+  <tr><td>Display</td><td>$6–10</td></tr>
+  <tr><td>Enclosure + mechanical</td><td>$20–40</td></tr>
+  <tr><td>Safety/mains components</td><td>$15–25</td></tr>
+  <tr><td>Passives, wire, misc</td><td>$10–20</td></tr>
+  <tr><td>**TOTAL**</td><td>**~$173–315 USD**</td></tr>
+</table>
+
+<hr>
+
+<h2>4. GPIO Pin Assignment Table</h2>
+
+<p><strong>Board:</strong> ESP32 DevKit C V4 (ESP32-WROOM-32, 38-pin)</p>
+
+<table>
+  <tr><th>GPIO</th><th>I/O</th><th>Connected To</th><th>Notes</th></tr>
+  <tr><td>2</td><td>OUT</td><td>L298N #1 IN4 — Coffee pump direction B</td><td>Moved from GPIO13 to free SPI MOSI</td></tr>
+  <tr><td>4</td><td>OUT</td><td>Fill valve transistor base [via 1kΩ]</td><td>Safe at boot — stays LOW. GPIO5 avoided (HIGH at boot)</td></tr>
+  <tr><td>12</td><td>OUT</td><td>TFT DC (Data/Command)</td><td>LOW=command; LOW at boot is safe (display in reset)</td></tr>
+  <tr><td>13</td><td>OUT</td><td>TFT MOSI</td><td>SPI data line</td></tr>
+  <tr><td>14</td><td>OUT</td><td>TFT SCK + L298N #1 IN3 Coffee pump A</td><td>Shared; TFT_CS deselects display when coffee pump runs</td></tr>
+  <tr><td>15</td><td>OUT</td><td>TFT CS (chip select)</td><td>Active LOW. HIGH at boot = deselected = safe</td></tr>
+  <tr><td>0</td><td>OUT</td><td>TFT RST</td><td>Shared with BOOT button. Pulsed after boot only</td></tr>
+  <tr><td>16</td><td>OUT</td><td>L298N #2 IN3 — Hot Water pump direction A</td></tr>
+  <tr><td>17</td><td>OUT</td><td>L298N #2 IN4 — Hot Water pump direction B</td></tr>
+  <tr><td>18</td><td>OUT</td><td>SSR #1 (+) [via 10kΩ] — Water heater</td></tr>
+  <tr><td>19</td><td>OUT</td><td>SSR #2 (+) [via 10kΩ] — Milk heater</td></tr>
+  <tr><td>21</td><td>OUT</td><td>SSR #3 (+) [via 10kΩ] — Decoction heater</td></tr>
+  <tr><td>22</td><td>INOUT</td><td>DS18B20 DATA bus (all 3 sensors)</td><td>4.7kΩ pull-up to 3.3V</td></tr>
+  <tr><td>23</td><td>IN</td><td>Float switch Wire A</td><td>INPUT_PULLUP. LOW=water present, HIGH=empty</td></tr>
+  <tr><td>25</td><td>OUT</td><td>L298N #1 IN1 — Milk pump direction A</td></tr>
+  <tr><td>26</td><td>OUT</td><td>L298N #1 IN2 — Milk pump direction B</td></tr>
+  <tr><td>27</td><td>OUT</td><td>Buzzer (+) [via 330Ω]</td></tr>
+  <tr><td>32</td><td>OUT</td><td>L298N #2 IN1 — Tea pump direction A</td></tr>
+  <tr><td>33</td><td>OUT</td><td>L298N #2 IN2 — Tea pump direction B</td></tr>
+  <tr><td>34</td><td>IN</td><td>Button 1 — Milk</td><td>INPUT ONLY. Needs 10kΩ external pull-up</td></tr>
+  <tr><td>35</td><td>IN</td><td>Button 2 — Coffee</td><td>INPUT ONLY. Needs 10kΩ external pull-up</td></tr>
+  <tr><td>36</td><td>IN</td><td>Button 3 — Tea</td><td>INPUT ONLY. Needs 10kΩ external pull-up</td></tr>
+  <tr><td>39</td><td>IN</td><td>Button 4 — Hot Water</td><td>INPUT ONLY. Needs 10kΩ external pull-up</td></tr>
+  <tr><td>3V3</td><td>PWR</td><td>DS18B20 VCC ×3, TFT VCC, pull-up refs</td></tr>
+  <tr><td>GND</td><td>GND</td><td>All module grounds → common star point</td></tr>
+</table>
+
+<blockquote>**Avoid completely:** GPIO 5 (HIGH at boot), GPIO 6–11 (internal flash), GPIO 1/3 (UART0), GPIO 12 (boot LOW strapping — used only for TFT DC, safe because display ignores commands during reset).</blockquote>
+
+<hr>
+
+<h2>5. Full Circuit Diagram</h2>
+
+<h3>5.1 System Overview</h3>
+
+<pre><code>
+══════════════════════════════════════════════════════════════
+  230V AC MAINS SIDE
+══════════════════════════════════════════════════════════════
+
+  [Wall Outlet 230V L/N/E]
+          │
+  [GFCI/RCD 30mA]  ← Electric shock protection — MANDATORY
+          │
+  [IEC C14 Inlet + 5A Slow-blow Fuse]
+          │
+  [Panel Power Switch]
+          │
+          ├──[Thermal Fuse 100&#176;C]──►[SSR#1 AC]──► Water Heater 500W ──► Neutral
+          ├──[Thermal Fuse  70&#176;C]──►[SSR#2 AC]──► Milk  Heater 300W ──► Neutral
+          └──[Thermal Fuse  45&#176;C]──►[SSR#3 AC]──► Decoct Heater200W ──► Neutral
+
+  Mains Earth ──► Metal enclosure chassis (mandatory grounding)
+
+══════════════════════════════════════════════════════════════
+  12V DC SIDE
+══════════════════════════════════════════════════════════════
+
+  12V 5A PSU
+   (+)─────┬────────── L298N #1  +12V
+           ├────────── L298N #2  +12V
+           ├────────── Solenoid Valve (+) via BC547 transistor
+           └──[100&#181;F cap]── GND
+   (-)──────────────── ★ GND STAR POINT ★
+
+══════════════════════════════════════════════════════════════
+  3.3V SIDE (from ESP32)
+══════════════════════════════════════════════════════════════
+
+  ESP32 3V3
+   ├──► DS18B20 #0 VCC  (Water container sensor)
+   ├──► DS18B20 #1 VCC  (Milk container sensor)
+   ├──► DS18B20 #2 VCC  (Decoction container sensor)
+   ├──[4.7kΩ]──► GPIO22 (OneWire pull-up)
+   ├──[10kΩ]───► GPIO34 (Button 1 pull-up)
+   ├──[10kΩ]───► GPIO35 (Button 2 pull-up)
+   ├──[10kΩ]───► GPIO36 (Button 3 pull-up)
+   ├──[10kΩ]───► GPIO39 (Button 4 pull-up)
+   ├──► TFT VCC
+   └──[33Ω]────► TFT LED (backlight)
+</code></pre>
+
+<h3>5.2 L298N Motor Driver #1 (Milk + Coffee)</h3>
+
+<pre><code>
+  12V PSU (+) ────────── L298N #1  +12V
+  GND Star    ────────── L298N #1  GND
+              [ENA jumper: INSTALL]  [ENB jumper: INSTALL]
+
+  GPIO25 ──────────────── IN1 ──┐
+  GPIO26 ──────────────── IN2 ──┤──► OUT1/OUT2 ──► Milk Pump  terminals
+  
+  GPIO14 ──────────────── IN3 ──┐  (also TFT SCK — shared, safe)
+  GPIO2  ──────────────── IN4 ──┤──► OUT3/OUT4 ──► Coffee Pump terminals
+</code></pre>
+
+<h3>5.3 L298N Motor Driver #2 (Tea + Hot Water)</h3>
+
+<pre><code>
+  12V PSU (+) ────────── L298N #2  +12V
+  GND Star    ────────── L298N #2  GND
+              [ENA jumper: INSTALL]  [ENB jumper: INSTALL]
+
+  GPIO32 ──────────────── IN1 ──┐
+  GPIO33 ──────────────── IN2 ──┤──► OUT1/OUT2 ──► Tea Pump      terminals
+  
+  GPIO16 ──────────────── IN3 ──┐
+  GPIO17 ──────────────── IN4 ──┤──► OUT3/OUT4 ──► Hot Water Pump terminals
+</code></pre>
+
+<h3>5.4 Solid State Relays (×3, identical)</h3>
+
+<pre><code>
+  DC control side:
+    ESP32 GPIO18 ──[10kΩ]──► SSR#1 (+)    SSR#1 (−) ──► GND Star
+    ESP32 GPIO19 ──[10kΩ]──► SSR#2 (+)    SSR#2 (−) ──► GND Star
+    ESP32 GPIO21 ──[10kΩ]──► SSR#3 (+)    SSR#3 (−) ──► GND Star
+
+  AC load side:
+    Mains Live ──[Thermal Fuse 100&#176;C]──► SSR#1 AC-IN
+                                         SSR#1 AC-OUT ──► Water Heater ──► Neutral
+
+    Mains Live ──[Thermal Fuse  70&#176;C]──► SSR#2 AC-IN
+                                         SSR#2 AC-OUT ──► Milk Heater  ──► Neutral
+
+    Mains Live ──[Thermal Fuse  45&#176;C]──► SSR#3 AC-IN
+                                         SSR#3 AC-OUT ──► Decoct Heater ──► Neutral
+
+  Mount each SSR flat on aluminium heat sink with thermal paste.
+  SSRs need airflow — do NOT enclose them in a sealed box.
+</code></pre>
+
+<h3>5.5 DS18B20 Temperature Sensors (OneWire bus)</h3>
+
+<pre><code>
+  ESP32 3V3 ──┬──[4.7kΩ]──┬──── ESP32 GPIO22
+              │             │
+              │   ┌─────────┤ (all DATA wires joined at GPIO22)
+              │   │         │
+           VCC│  DATA  DS18B20 #0  (Water container — target 80&#176;C)
+           VCC│  DATA  DS18B20 #1  (Milk container   — target 60&#176;C)
+           VCC│  DATA  DS18B20 #2  (Decoction         — target 30&#176;C)
+              │
+  All VCC ──► ESP32 3V3
+  All GND ──► GND Star
+
+  Sensor mounting:
+    #0 → Submerged in water tank, away from heater element
+    #1 → Submerged in milk container, away from heater element
+    #2 → Submerged in decoction container, away from heater element
+</code></pre>
+
+<h3>5.6 Fill Solenoid Valve (NPN Transistor Driver)</h3>
+
+<pre><code>
+  ESP32 GPIO4 ──[1kΩ]──► BC547 Base
+                          BC547 Emitter ──────────────────► GND Star
+                          BC547 Collector ──► Solenoid (−)
+  12V PSU (+) ─────────────────────────► Solenoid (+)
+  
+  1N4007 diode: Anode ──► BC547 Collector
+                Cathode ──► 12V line
+  (flyback diode — MANDATORY to prevent transistor damage)
+
+  Valve is Normally Closed:
+    GPIO4 LOW  = transistor OFF = valve CLOSED  (safe default, fail-safe)
+    GPIO4 HIGH = transistor ON  = valve OPEN    (fills water tank)
+</code></pre>
+
+<h3>5.7 Water Level Float Switch</h3>
+
+<pre><code>
+  ESP32 GPIO23 ──── Float Switch terminal A
+  GND Star     ──── Float Switch terminal B
+
+  GPIO23 configured as INPUT_PULLUP:
+    Internal pull-up holds GPIO23 HIGH when switch is open (tank empty)
+    When float rises (tank full), switch closes → GPIO23 pulled to GND → LOW
+
+  Firmware: LOW = water OK,  HIGH = no water / refill needed
+</code></pre>
+
+<h3>5.8 Drink Select Buttons (×4)</h3>
+
+<pre><code>
+  3.3V ──[10kΩ]──┬── GPIO34  ← B1 Milk
+                  └── Button1 one terminal ──► GND
+
+  3.3V ──[10kΩ]──┬── GPIO35  ← B2 Coffee
+                  └── Button2 one terminal ──► GND
+
+  3.3V ──[10kΩ]──┬── GPIO36  ← B3 Tea
+                  └── Button3 one terminal ──► GND
+
+  3.3V ──[10kΩ]──┬── GPIO39  ← B4 Hot Water
+                  └── Button4 one terminal ──► GND
+
+  Active LOW: button pressed = GPIO reads LOW.
+  GPIO 34–39 are INPUT-ONLY on ESP32 — external pull-ups are required.
+</code></pre>
+
+<h3>5.9 Buzzer</h3>
+
+<pre><code>
+  GPIO27 ──[330Ω]──► Buzzer (+) (longer lead)
+  GND Star  ────────► Buzzer (−) (shorter lead)
+</code></pre>
+
+<h3>5.10 ILI9341 2.4" SPI TFT Display</h3>
+
+<pre><code>
+  TFT Pin   ──► Connection
+  ─────────────────────────────────────────────────────
+  VCC        ──► ESP32 3V3
+  GND        ──► GND Star
+  CS         ──► GPIO15  (active LOW chip select)
+  RESET      ──► GPIO0   (LOW pulse resets display; after boot only)
+  DC / RS    ──► GPIO12  (LOW=command, HIGH=data)
+  SDI/MOSI   ──► GPIO13  (SPI data from ESP32)
+  SCK        ──► GPIO14  (SPI clock — also Coffee pump IN3, safe)
+  LED        ──[33Ω]──► ESP32 3V3  (always-on backlight)
+  SDO/MISO   ──  Leave unconnected (display is write-only)
+</code></pre>
+
+<h3>5.11 Hot Water to Decoction Container Plumbing</h3>
+
+<pre><code>
+  Water Tank ──► Pump 3 (Motor 3, Hot Water pump)
+                    │
+                    └──► Y-pipe splitter
+                              │
+                    ┌─────────┴────────┐
+                    ↓                  ↓
+            Coffee Decoction    Tea Decoction
+            Container inlet     Container inlet
+
+  At startup (Phase 2), Pump 3 runs for 8 seconds per container,
+  pushing 80&#176;C water from the water tank into both decoction containers.
+  This pre-heats and hydrates the decoction before the decoction heater starts.
+
+  If no Y-pipe: connect Pump 3 to a 2-position manual valve.
+  Run Coffee fill, switch valve, run Tea fill.
+  (The firmware fills Coffee first, then Tea, sequentially.)
+</code></pre>
+
+<hr>
+
+<h2>6. Wiring Connection Tables</h2>
+
+<h3>L298N #1 Complete Pin Table</h3>
+
+<table>
+  <tr><th>L298N #1 Pin</th><th>Wire To</th><th>Notes</th></tr>
+  <tr><td>+12V</td><td>12V PSU (+)</td><td>Motor supply</td></tr>
+  <tr><td>GND</td><td>GND Star</td><td>Common ground</td></tr>
+  <tr><td>+5V (out)</td><td>Optional → ESP32 5V</td><td>Onboard 7805, max 1A</td></tr>
+  <tr><td>ENA</td><td>Jumper installed</td><td>Always enabled</td></tr>
+  <tr><td>ENB</td><td>Jumper installed</td><td>Always enabled</td></tr>
+  <tr><td>IN1</td><td>GPIO 25</td><td>Milk pump direction A</td></tr>
+  <tr><td>IN2</td><td>GPIO 26</td><td>Milk pump direction B</td></tr>
+  <tr><td>IN3</td><td>GPIO 14</td><td>Coffee pump direction A (shared with TFT SCK)</td></tr>
+  <tr><td>IN4</td><td>GPIO 2</td><td>Coffee pump direction B</td></tr>
+  <tr><td>OUT1</td><td>Milk pump wire (+)</td></tr>
+  <tr><td>OUT2</td><td>Milk pump wire (−)</td></tr>
+  <tr><td>OUT3</td><td>Coffee pump wire (+)</td></tr>
+  <tr><td>OUT4</td><td>Coffee pump wire (−)</td></tr>
+</table>
+
+<h3>L298N #2 Complete Pin Table</h3>
+
+<table>
+  <tr><th>L298N #2 Pin</th><th>Wire To</th><th>Notes</th></tr>
+  <tr><td>+12V</td><td>12V PSU (+)</td></tr>
+  <tr><td>GND</td><td>GND Star</td></tr>
+  <tr><td>ENA</td><td>Jumper installed</td></tr>
+  <tr><td>ENB</td><td>Jumper installed</td></tr>
+  <tr><td>IN1</td><td>GPIO 32</td><td>Tea pump direction A</td></tr>
+  <tr><td>IN2</td><td>GPIO 33</td><td>Tea pump direction B</td></tr>
+  <tr><td>IN3</td><td>GPIO 16</td><td>Hot Water pump direction A</td></tr>
+  <tr><td>IN4</td><td>GPIO 17</td><td>Hot Water pump direction B</td></tr>
+  <tr><td>OUT1</td><td>Tea pump wire (+)</td></tr>
+  <tr><td>OUT2</td><td>Tea pump wire (−)</td></tr>
+  <tr><td>OUT3</td><td>Hot Water pump wire (+)</td></tr>
+  <tr><td>OUT4</td><td>Hot Water pump wire (−)</td></tr>
+</table>
+
+<h3>SSR Pin Table (each of the 3 modules)</h3>
+
+<table>
+  <tr><th>SSR Pin</th><th>Wire To</th></tr>
+  <tr><td>DC+ (control)</td><td>GPIO via 10kΩ resistor</td></tr>
+  <tr><td>DC− (control)</td><td>GND Star</td></tr>
+  <tr><td>AC1 (load)</td><td>Mains Live via thermal fuse</td></tr>
+  <tr><td>AC2 (load)</td><td>Heater element lead</td></tr>
+  <tr><td>Heater other lead</td><td>Mains Neutral</td></tr>
+  <tr><td>SSR body</td><td>Aluminium heat sink (with thermal paste)</td></tr>
+</table>
+
+<h3>TFT Display Pin Table</h3>
+
+<table>
+  <tr><th>TFT Board Pin</th><th>Wire To</th><th>Notes</th></tr>
+  <tr><td>VCC</td><td>ESP32 3V3</td><td>3.3V only — NOT 5V</td></tr>
+  <tr><td>GND</td><td>GND Star</td></tr>
+  <tr><td>CS</td><td>GPIO 15</td></tr>
+  <tr><td>RESET</td><td>GPIO 0</td></tr>
+  <tr><td>DC/RS</td><td>GPIO 12</td></tr>
+  <tr><td>SDI (MOSI)</td><td>GPIO 13</td></tr>
+  <tr><td>SCK</td><td>GPIO 14</td><td>Shared with Coffee IN3</td></tr>
+  <tr><td>LED</td><td>3.3V via 33Ω</td></tr>
+  <tr><td>SDO (MISO)</td><td>Not connected</td></tr>
+</table>
+
+<hr>
+
+<h2>7. Display Layout</h2>
+
+<pre><code>
+╔══════════════════════════╗  ← y=0
+║  ▓  Lyra Coffee  ▓▓▓▓▓  ║  Title bar (navy background, cyan text)
+╠══════════════════════════╣  ← y=28
+║ WATER                    ║  ← y=38 label (grey)
+║ 79.8 / 80 C  █████████░ ║  ← y=50 temperature + progress bar
+║                          ║
+║ MILK                     ║  ← y=78 label
+║ 58.7 / 60 C  ████████░░ ║  ← y=90 temperature + progress bar
+║                          ║
+║ DECOCTION                ║  ← y=118 label
+║ 29.2 / 30 C  █████████  ║  ← y=130 temperature + progress bar
+╠ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╣  ← y=155
+║ STATUS                   ║  ← y=162 label
+║ READY            (green) ║  ← y=180 large status text
+║ Select a drink           ║  ← y=204 sub-text
+╠ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╣  ← y=250
+║ [MILK][COFFEE][TEA ][HW] ║  ← button guide
+║   B1    B2     B3   B4   ║
+╚══════════════════════════╝  ← y=320
+</code></pre>
+
+<p><strong>Status text colours:</strong></p>
+
+<table>
+  <tr><th>State</th><th>Text</th><th>Colour</th></tr>
+  <tr><td>Initialising</td><td>Initialising</td><td>Yellow</td></tr>
+  <tr><td>Heating water</td><td>Heating Water</td><td>Yellow</td></tr>
+  <tr><td>Filling decoction</td><td>Filling Coffee/Tea</td><td>Sky Blue</td></tr>
+  <tr><td>Heating milk/decoction</td><td>Heating Milk / Decoct</td><td>Yellow</td></tr>
+  <tr><td>Ready</td><td>READY</td><td>Green</td></tr>
+  <tr><td>Dispensing</td><td>Drink name + phase</td><td>Cyan / Yellow</td></tr>
+  <tr><td>Error</td><td>NO WATER / Error</td><td>Red</td></tr>
+</table>
+
+<hr>
+
+<h2>8. Startup Sequence (Detailed)</h2>
+
+<pre><code>
+ POWER ON
+    │
+    ├─ TFT initialises: draws title bar, temp rows, menu bar
+    ├─ TFT: &quot;Initialising / Please wait...&quot;
+    │
+    ▼
+ ┌─── S_CHECK_WATER ───────────────────────────────────────────┐
+ │  Read GPIO23 (float switch)                                  │
+ │    Float switch HIGH (open) = no water → ERROR beep          │
+ │    → TFT: &quot;NO WATER / Refill reservoir!&quot;                     │
+ │    → Wait 10 s → retry (loop until water detected)           │
+ │    Float switch LOW (closed) = water present → proceed       │
+ └──────────────────────────────────────────────────────────────┘
+    │ water OK
+    ▼
+ ┌─── S_FILLING ────────────────────────────────────────────────┐
+ │  TFT: &quot;Filling / water tank...&quot;                               │
+ │  GPIO4 HIGH → opens solenoid valve                           │
+ │  Wait until GPIO23 goes LOW (float switch triggers)          │
+ │  GPIO4 LOW  → closes solenoid valve                          │
+ │  Wait FILL_SETTLE_MS (2 s) for liquid to settle              │
+ │  Timeout 30 s → S_ERROR_FILL (restart after 30 s)            │
+ └──────────────────────────────────────────────────────────────┘
+    │ filled OK
+    ▼
+ ┌─── S_HEAT_WATER (Phase 1) ───────────────────────────────────┐
+ │  TFT: &quot;Heating Water / Target: 80C&quot;                           │
+ │  GPIO18 HIGH → Water heater SSR ON                           │
+ │  Poll DS18B20 #0 every 2 s                                    │
+ │  TFT temperature row updates live                             │
+ │  Wait until Water temp ≥ 78.5&#176;C (80&#176;C − 1.5&#176;C hysteresis)    │
+ └──────────────────────────────────────────────────────────────┘
+    │ water at 80&#176;C
+    ▼
+ ┌─── S_FILL_DECOCTIONS (Phase 2) ──────────────────────────────┐
+ │  PURPOSE: Pre-fill decoction containers with hot water        │
+ │  so decoctions are hydrated before their heaters start.       │
+ │                                                               │
+ │  Step A — Coffee container fill:                              │
+ │    TFT: &quot;Filling Coffee / Decoction...&quot;                       │
+ │    Motor 3 FORWARD for FILL_COFFEE_HOT_MS (8 s)              │
+ │    Hot water flows: Tank → Pump3 → Y-pipe → Coffee container  │
+ │    Water heater continues to regulate during fill             │
+ │                                                               │
+ │  Brief pause (500 ms)                                         │
+ │                                                               │
+ │  Step B — Tea container fill:                                 │
+ │    TFT: &quot;Filling Tea / Decoction...&quot;                          │
+ │    Motor 3 FORWARD for FILL_TEA_HOT_MS (8 s)                 │
+ │    Hot water flows: Tank → Pump3 → Y-pipe → Tea container     │
+ └──────────────────────────────────────────────────────────────┘
+    │ both containers filled with hot water
+    ▼
+ ┌─── S_HEAT_MILK_DECOCT (Phase 3) ─────────────────────────────┐
+ │  Step A — Milk heater:                                        │
+ │    700 ms stagger delay                                        │
+ │    TFT: &quot;Heating Milk / Target: 60C&quot;                          │
+ │    GPIO19 HIGH → Milk heater SSR ON                           │
+ │    Wait until Milk temp ≥ 58.5&#176;C                              │
+ │    (Water heater kept regulated during this wait)             │
+ │                                                               │
+ │  Step B — Decoction heater:                                   │
+ │    700 ms stagger delay                                        │
+ │    TFT: &quot;Heating Decoct / Target: 30C&quot;                        │
+ │    GPIO21 HIGH → Decoction heater SSR ON                      │
+ │    Wait until Decoct temp ≥ 28.5&#176;C                            │
+ │    (Water + Milk heaters kept regulated during this wait)     │
+ └──────────────────────────────────────────────────────────────┘
+    │ all chambers at target
+    ▼
+ ┌─── S_READY ──────────────────────────────────────────────────┐
+ │  Triple ascending beep                                        │
+ │  TFT: &quot;READY / Select a drink&quot;                                │
+ │  Every 2 s: re-read all 3 DS18B20 sensors                     │
+ │             regulate all 3 heaters (bang-bang &#177;1.5&#176;C)         │
+ │             update all 3 TFT temperature rows                 │
+ │  Poll buttons GPIO34/35/36/39 every 50 ms                     │
+ │  Serial commands: 1/2/3/4 dispense, t=temps, r=restart        │
+ └──────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr>
+
+<h2>9. Dispense Sequences</h2>
+
+<h3>Milk / Coffee Decoction / Tea Decoction (Pumps 0–2)</h3>
+
+<pre><code>
+  Button press detected
+       │
+       ├─ TFT: &quot;&lt;Drink Name&gt; / Priming...&quot;
+       ├─ Beep
+       │
+       ▼
+  ┌── PHASE 1: PRIME (5 seconds) ─────────────────────────┐
+  │  Motor REVERSE for PRIME_MS (5000 ms)                  │
+  │  Sucks liquid back slightly to clear air from line.    │
+  │  Prevents a stale / air-burst first drop.              │
+  └────────────────────────────────────────────────────────┘
+       │
+       ▼
+  ┌── PHASE 2: DISPENSE (3–7 seconds) ────────────────────┐
+  │  Motor FORWARD for DISP_xxx_MS                         │
+  │    Milk:   7000 ms  (7 s)                              │
+  │    Coffee: 3000 ms  (3 s)                              │
+  │    Tea:    3000 ms  (3 s)                              │
+  │  Liquid flows from container → pump → nozzle → cup     │
+  └────────────────────────────────────────────────────────┘
+       │
+       ▼
+  ┌── PHASE 3: PURGE / ANTI-DRIP (5 seconds) ─────────────┐
+  │  Motor REVERSE for PURGE_MS (5000 ms)                  │
+  │  Sucks liquid back from nozzle into the tube.          │
+  │  Prevents post-dispense dripping.                       │
+  └────────────────────────────────────────────────────────┘
+       │
+       └─ Motor stopped → TFT: &quot;READY / Select a drink&quot;
+</code></pre>
+
+<h3>Hot Water (Pump 3)</h3>
+
+<pre><code>
+  Button 4 pressed
+    → Beep → Motor 3 forward 5 s → Motor stop → READY
+  (No prime or purge — water doesn&#39;t drip significantly)
+</code></pre>
+
+<hr>
+
+<h2>10. Temperature Control System</h2>
+
+<h3>Operating Targets</h3>
+
+<table>
+  <tr><th>Chamber</th><th>Sensor Index</th><th>GPIO</th><th>Heater Power</th><th>Target</th><th>Thermal Fuse</th></tr>
+  <tr><td>Water</td><td>0</td><td>18 (SSR#1)</td><td>500W</td><td>80°C</td><td>100°C</td></tr>
+  <tr><td>Milk</td><td>1</td><td>19 (SSR#2)</td><td>300W</td><td>60°C</td><td>70°C</td></tr>
+  <tr><td>Decoction</td><td>2</td><td>21 (SSR#3)</td><td>200W</td><td>30°C</td><td>45°C</td></tr>
+</table>
+
+<h3>Bang-Bang Control with Hysteresis</h3>
+
+<pre><code>
+  Heater turns ON when:  temp &lt; (target − 1.5&#176;C)
+  Heater turns OFF when: temp &gt; (target + 1.5&#176;C)
+
+  Example — Water (target 80&#176;C):
+    Heater ON  when temp falls below 78.5&#176;C
+    Heater OFF when temp rises above 81.5&#176;C
+    Steady-state oscillation: 78.5–81.5&#176;C band
+</code></pre>
+
+<h3>Thermal Runaway Protection</h3>
+
+<pre><code>
+  If any sensor reads (target + 5.0&#176;C) or more:
+    → ALL three heaters immediately cut OFF
+    → Serial: &quot;[!!! SAFETY] THERMAL RUNAWAY — all heaters OFF.&quot;
+    → Machine stays in READY state but heaters won&#39;t turn back on
+      until ESP32 is restarted
+  
+  This protects against:
+    - Sensor disconnect (DS18B20 returns -127&#176;C — checked separately)
+    - Heater element stuck ON (SSR welded closed)
+    - Runaway due to software bug
+</code></pre>
+
+<h3>DS18B20 Sensor Discovery</h3>
+
+<p>Before first use, identify each sensor&#39;s unique ROM address:</p>
+
+<p>1. Set <code>#define SCAN_SENSORS 1</code> in <code>include/config.h</code></p>
+<p>2. Flash firmware: <code>pio run --target upload</code></p>
+<p>3. Open serial monitor at 115200 baud</p>
+<p>4. Note down the 3 printed addresses</p>
+<p>5. Copy each address to <code>config.h</code>:</p>
+
+<pre><code>
+#define SENSOR_WATER_ADDR   { 0x28, 0xFF, ... }  // sensor in water tank
+#define SENSOR_MILK_ADDR    { 0x28, 0xFF, ... }  // sensor in milk container
+#define SENSOR_DECOCT_ADDR  { 0x28, 0xFF, ... }  // sensor in decoction container
+</code></pre>
+
+<p>6. Set <code>#define SCAN_SENSORS 0</code> and reflash</p>
+
+<hr>
+
+<h2>11. Software Setup</h2>
+
+<h3>Prerequisites</h3>
+
+<p>1. Install [VS Code](https://code.visualstudio.com/)</p>
+<p>2. Install [PlatformIO IDE extension](https://platformio.org/install/ide?install=vscode)</p>
+<p>3. Open the <code>Lyra Coffee Machine</code> folder in VS Code</p>
+
+<h3>Project Files</h3>
+
+<pre><code>
+Lyra Coffee Machine/
+├── platformio.ini          ← Build config (board, libraries, TFT flags)
+├── include/
+│   └── config.h            ← ALL pin &amp; timing constants — edit here
+├── src/
+│   └── main.cpp            ← Firmware state machine
+├── docs/
+│   ├── COMPLETE_BUILD_GUIDE.md   ← This document
+│   ├── components_list.md
+│   ├── wiring_diagram.md
+│   └── generate_pdf.ps1    ← PDF export script
+└── README.md
+</code></pre>
+
+<h3>Build and Flash</h3>
+
+<pre><code>
+# Build only
+pio run
+
+# Build and flash
+pio run --target upload
+
+# Monitor serial output
+pio device monitor
+
+# Build + flash + monitor in one
+pio run --target upload ; pio device monitor
+</code></pre>
+
+<h3>Serial Commands (115200 baud, during READY state)</h3>
+
+<table>
+  <tr><th>Command</th><th>Action</th></tr>
+  <tr><td>`1`</td><td>Dispense Milk</td></tr>
+  <tr><td>`2`</td><td>Dispense Coffee Decoction</td></tr>
+  <tr><td>`3`</td><td>Dispense Tea Decoction</td></tr>
+  <tr><td>`4`</td><td>Dispense Hot Water</td></tr>
+  <tr><td>`t`</td><td>Print all 3 temperatures to serial</td></tr>
+  <tr><td>`r`</td><td>Restart ESP32</td></tr>
+</table>
+
+<h3>Library Dependencies (auto-installed by PlatformIO)</h3>
+
+<table>
+  <tr><th>Library</th><th>Version</th><th>Purpose</th></tr>
+  <tr><td>`paulstoffregen/OneWire`</td><td>^2.3.7</td><td>DS18B20 communication</td></tr>
+  <tr><td>`milesburton/DallasTemperature`</td><td>^3.11.0</td><td>DS18B20 temperature reading</td></tr>
+  <tr><td>`bodmer/TFT_eSPI`</td><td>^2.5.43</td><td>ILI9341 TFT display driver</td></tr>
+</table>
+
+<hr>
+
+<h2>12. Mechanical Assembly</h2>
+
+<h3>Step-by-Step Assembly Order</h3>
+
+<p><strong>Step 1 — Prepare containers</strong></p>
+<p>- Drill inlet/outlet holes in each container matching tubing OD</p>
+<p>- Install food-safe bulkhead fittings</p>
+<p>- Mount heating element inside each container (bottom area, not touching walls)</p>
+<p>- Mount DS18B20 sensor probe inside each container (away from heater, below minimum liquid level)</p>
+<p>- Install thermal fuse physically against or near the heater element</p>
+
+<p><strong>Step 2 — Mount pumps</strong></p>
+<p>- Attach pump mounting brackets to enclosure floor or side wall</p>
+<p>- Install all 4 peristaltic pumps; label each (Milk, Coffee, Tea, HotWater)</p>
+<p>- Connect silicone tubing: container outlet → pump inlet, pump outlet → dispense nozzle or decoction container inlet</p>
+
+<p><strong>Step 3 — Hot water plumbing (critical)</strong></p>
+<pre><code>
+  Water Tank → Pump 3 (Hot Water Motor) → Y-pipe splitter
+                                              ├── Branch A → Coffee Decoction container
+                                              └── Branch B → Tea Decoction container
+  
+  ALSO connect:
+  Water Tank → Pump 3 → Hot Water nozzle (Button 4 dispense)
+  
+  Note: Pump 3 is used for both startup filling (branches to decoctions)
+  and normal hot water dispense (to nozzle). Use a 3-way fitting or
+  a check-valve arrangement to direct flow appropriately.
+  
+  Simplest approach: use a manual 3-way valve and set it to
+  &quot;decoction fill&quot; mode before first startup, then switch to
+  &quot;nozzle&quot; mode for normal operation.
+</code></pre>
+
+<p><strong>Step 4 — Electrical — Low voltage (12V/3.3V) first</strong></p>
+<p>- Build the ESP32 circuit on perfboard</p>
+<p>- Wire all L298N modules</p>
+<p>- Wire all buttons with pull-up resistors</p>
+<p>- Wire DS18B20 sensors on OneWire bus</p>
+<p>- Wire TFT display</p>
+<p>- Wire buzzer</p>
+<p>- Wire fill valve transistor circuit</p>
+<p>- Connect 12V PSU</p>
+
+<p><strong>Step 5 — Test low-voltage circuits BEFORE mains wiring</strong></p>
+<p>- Flash firmware with <code>SCAN_SENSORS=1</code> to confirm DS18B20s are found</p>
+<p>- Test all 4 buttons via serial monitor</p>
+<p>- Test all 4 pumps via serial commands <code>1</code>/<code>2</code>/<code>3</code>/<code>4</code></p>
+<p>- Verify TFT shows &quot;Initialising&quot; on boot</p>
+<p>- Test fill valve opens/closes with GPIO4</p>
+
+<p><strong>Step 6 — Electrical — Mains wiring</strong></p>
+<p>- Wire GFCI/RCD breaker</p>
+<p>- Wire IEC C14 inlet and fuse</p>
+<p>- Wire panel switch</p>
+<p>- Wire thermal fuses to heater elements</p>
+<p>- Wire SSR AC sides to heaters</p>
+<p>- Wire SSR DC sides to ESP32</p>
+<p>- Earth chassis</p>
+<p>- Double-check all mains connections — have a qualified electrician review if unsure</p>
+
+<p><strong>Step 7 — Integration test</strong></p>
+<p>- Power on machine</p>
+<p>- Observe TFT startup sequence</p>
+<p>- Confirm water fill happens</p>
+<p>- Observe temperature rising on display</p>
+<p>- Confirm startup fills decoction containers with hot water</p>
+<p>- Test all 4 drink buttons</p>
+
+<hr>
+
+<h2>13. Testing Procedure</h2>
+
+<h3>Pre-Power Tests (multimeter checks)</h3>
+
+<table>
+  <tr><th>Test</th><th>Expected</th><th>Pass Criteria</th></tr>
+  <tr><td>12V PSU polarity</td><td>(+) = Red terminal</td><td>12.0–12.5V</td></tr>
+  <tr><td>Mains L-to-N voltage</td><td>230V AC</td><td>220–240V</td></tr>
+  <tr><td>Fuse continuity</td><td>Through fuse</td><td>0Ω</td></tr>
+  <tr><td>Heater element resistance</td><td>Water 500W</td><td>~97Ω</td></tr>
+  <tr><td>Thermal fuse continuity</td><td>Before tripping</td><td>0Ω</td></tr>
+  <tr><td>Chassis to mains Earth</td><td>0Ω</td><td>< 1Ω</td></tr>
+  <tr><td>RCD test button</td><td>Trips RCD</td><td>Trips immediately</td></tr>
+</table>
+
+<h3>Firmware Tests (serial monitor)</h3>
+
+<pre><code>
+Command &#39;1&#39; → Milk pump:    reverses 5s, forwards 7s, reverses 5s
+Command &#39;2&#39; → Coffee pump:  reverses 5s, forwards 3s, reverses 5s
+Command &#39;3&#39; → Tea pump:     reverses 5s, forwards 3s, reverses 5s
+Command &#39;4&#39; → Hot Water:    forwards 5s only
+Command &#39;t&#39; → Shows all 3 temperatures
+</code></pre>
+
+<h3>Full Startup Test</h3>
+
+<p>1. Fill water tank manually</p>
+<p>2. Power on machine</p>
+<p>3. Watch serial output and TFT</p>
+<p>4. Confirm TFT progresses through:</p>
+<p>   - &quot;Initialising&quot; → &quot;Filling water tank&quot; → &quot;Heating Water&quot; → &quot;Filling Coffee Decoction&quot; → &quot;Filling Tea Decoction&quot; → &quot;Heating Milk&quot; → &quot;Heating Decoct&quot; → &quot;<strong>READY</strong>&quot;</p>
+<p>5. Place cups under nozzles</p>
+<p>6. Press each button in turn — confirm correct pump runs correct sequence</p>
+
+<hr>
+
+<h2>14. Safety Guidelines</h2>
+
+<blockquote>**⚠️ This project involves 230V AC mains electricity and hot liquids up to 80°C. Non-compliance with safety requirements can cause fire, electrocution, or burns.**</blockquote>
+
+<h3>Mandatory Safety Requirements</h3>
+
+<p>1. <strong>GFCI/RCD 30mA</strong> — Install upstream of the machine. This is non-negotiable. It is the primary protection against fatal electric shock.</p>
+
+<p>2. <strong>Thermal fuses</strong> — Install one in series with EACH heater element. These are one-shot hardware protection against heater runaway if the software fails.</p>
+
+<p>3. <strong>SSR heat sinks</strong> — Each SSR generates ~1W per amp of load. Without heat sinks they will overheat and fail, possibly welding closed and leaving the heater permanently ON.</p>
+
+<p>4. <strong>Earthing/Grounding</strong> — Connect the metal chassis to mains Earth. This ensures a fuse blows (not a person) if a live wire touches the chassis.</p>
+
+<p>5. <strong>Flyback diode</strong> — The 1N4007 across the solenoid valve coil is mandatory. Without it, transistor turn-off generates a voltage spike that will destroy the BC547.</p>
+
+<p>6. <strong>Physical separation</strong> — Keep 230V wiring and 12V/3.3V wiring on opposite sides of the enclosure. Use cable clamps to prevent mains wires from moving and potentially touching low-voltage circuitry.</p>
+
+<p>7. <strong>Fuse sizing</strong> — Use the specified 5A slow-blow fuse. Do not substitute a higher-rated fuse; it defeats the purpose.</p>
+
+<p>8. <strong>Food safety</strong> — Use only food-grade silicone tubing, food-safe container materials (stainless steel or BPA-free plastic), and food-grade lubricant on pump heads.</p>
+
+<p>9. <strong>Qualified review</strong> — If you are not confident about your mains wiring, have a qualified electrician review it before powering on.</p>
+
+<h3>Operational Safety</h3>
+
+<p>- Never open the machine while it is plugged in</p>
+<p>- Always turn off the panel switch before refilling containers</p>
+<p>- Allow heaters to cool before maintenance</p>
+<p>- Label the machine: &quot;230V inside — dangerous voltage present&quot;</p>
+<p>- Do not leave the machine unattended during first power-on tests</p>
+
+<hr>
+
+<h2>15. Troubleshooting</h2>
+
+<table>
+  <tr><th>Symptom</th><th>Likely Cause</th><th>Solution</th></tr>
+  <tr><td>Display stays blank</td><td>TFT wiring error</td><td>Check GPIO12/13/14/15 connections; verify 3.3V on TFT VCC</td></tr>
+  <tr><td>"NO WATER" at startup</td><td>Float switch wiring</td><td>Check GPIO23; float switch should pull GPIO23 to GND when UP</td></tr>
+  <tr><td>Water fills indefinitely</td><td>Float switch not triggering</td><td>Test float switch continuity when manually lifted</td></tr>
+  <tr><td>Pump runs but no liquid</td><td>Tubing not connected or airlock</td><td>Prime tubes manually; check tube routing</td></tr>
+  <tr><td>Pump runs wrong direction</td><td>IN1/IN2 swapped</td><td>Swap OUT1/OUT2 connections at the L298N terminal</td></tr>
+  <tr><td>Temperature reads -127°C</td><td>DS18B20 disconnected</td><td>Check data wire, 4.7kΩ pull-up, and VCC/GND</td></tr>
+  <tr><td>Temperature reads 85°C constantly</td><td>DS18B20 power issue</td><td>Use 3.3V not 5V; check GND connection</td></tr>
+  <tr><td>Heater never turns on</td><td>SSR wiring error</td><td>Verify GPIO18/19/21 going HIGH; measure SSR DC input voltage</td></tr>
+  <tr><td>Heater stays on permanently</td><td>SSR welded shut (overheated)</td><td>Replace SSR; ensure heat sink is properly mounted</td></tr>
+  <tr><td>Thermal fuse blown</td><td>Heater overran temperature</td><td>Replace thermal fuse; investigate root cause (sensor failure?)</td></tr>
+  <tr><td>ESP32 resets on button press</td><td>Button not debounced</td><td>50ms delay is in firmware; check for shorts</td></tr>
+  <tr><td>Decoction not filling at startup</td><td>Pump 3 tubing not routed to Y-pipe</td><td>Check plumbing; confirm Pump 3 outlet connects to Y-splitter</td></tr>
+  <tr><td>TFT display garbled</td><td>MOSI/SCK swapped or CS not connected</td><td>Check GPIO13 (MOSI), GPIO14 (SCK), GPIO15 (CS)</td></tr>
+</table>
+
+<hr>
+
+<h2>16. Adjusting Timings & Temperatures</h2>
+
+<p>Edit <code>include/config.h</code> — no changes to <code>src/main.cpp</code> needed.</p>
+
+<h3>Dispense Volumes</h3>
+
+<p>Calibrate by running each pump and weighing the output in a cup:</p>
+
+<pre><code>
+#define PRIME_MS          5000UL   // Prime/purge duration (all pumps)
+#define PURGE_MS          5000UL   // Anti-drip purge duration
+#define DISP_MILK_MS      7000UL   // Increase to dispense more milk
+#define DISP_COFFEE_MS    3000UL   // Increase for more coffee decoction
+#define DISP_TEA_MS       3000UL   // Increase for more tea decoction
+#define DISP_WATER_MS     5000UL   // Increase for more hot water
+</code></pre>
+
+<p>Rule of thumb: 1 second ≈ 3–5 mL for a typical 100 mL/min peristaltic pump.</p>
+
+<h3>Hot Water Pre-fill Volumes</h3>
+
+<pre><code>
+#define FILL_COFFEE_HOT_MS    8000UL  // Seconds of hot water into Coffee container
+#define FILL_TEA_HOT_MS       8000UL  // Seconds of hot water into Tea container
+</code></pre>
+
+<p>Increase if containers are larger. Decrease if they overflow.</p>
+
+<h3>Temperature Targets</h3>
+
+<pre><code>
+#define TARGET_WATER_C     80.0f   // Raise for hotter water (max ~95&#176;C safe)
+#define TARGET_MILK_C      60.0f   // Lower for cooler milk (min ~55&#176;C for safety)
+#define TARGET_DECOCT_C    30.0f   // Raise slightly if decoction needs to stay warm
+#define HYSTERESIS_C        1.5f   // Tighten to 0.5f for tighter control (slower)
+</code></pre>
+
+<blockquote>After changing temperatures, update your thermal fuses accordingly.  </blockquote>
+<blockquote>Thermal fuse should always be rated ~10°C above the target.</blockquote>
+
+<hr>
+
+<p><em>Lyra Coffee Machine — Build Guide v1.0</em>  </p>
+<p><em>Generated from project source: <code>e:\Lyra Coffee Machine\</code></em></p>
+</body></html>

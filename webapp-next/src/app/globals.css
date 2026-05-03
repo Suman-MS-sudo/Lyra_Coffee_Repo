@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 16px;
+  }
+  * { -webkit-tap-highlight-color: transparent; }
+  html { scroll-behavior: smooth; }
+  body { overscroll-behavior: none; }
+}
+
+@layer components {
+  /* Glass card */
+  .glass {
+    @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-glass;
+  }
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-br from-coffee-300 to-coffee-500 bg-clip-text text-transparent;
+  }
+  /* Editorial serif headline */
+  .display {
+    font-family: var(--font-playfair), Georgia, serif;
+    font-feature-settings: "ss01", "liga";
+    letter-spacing: -0.01em;
+  }
+  /* Decorative thin divider with centred ornament */
+  .ornament-divider {
+    @apply flex items-center gap-3 text-white/30 text-[11px] tracking-[0.3em] uppercase;
+  }
+  .ornament-divider::before,
+  .ornament-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,.18), transparent);
+  }
+  /* Soft inner-glow card surface (dark glassy) */
+  .surface {
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,.06), transparent 60%),
+      linear-gradient(to bottom, rgba(255,255,255,.04), rgba(255,255,255,.015));
+    @apply border border-white/10 backdrop-blur-xl;
+  }
+  /* Shimmer skeleton */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,.04) 25%,
+      rgba(255,255,255,.08) 50%,
+      rgba(255,255,255,.04) 75%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer rounded-lg;
+  }
+}

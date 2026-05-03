@@ -1,0 +1,108 @@
+'use client';
+
+import { ChevronLeft, Loader2 } from 'lucide-react';
+import type { DrinkCustomization } from '@/lib/types/database';
+import { formatPrice, cap } from '@/lib/utils/cn';
+import { getMachineDrinkPrice } from '@/lib/utils/security';
+
+interface Props {
+  machineId:        string;
+  drink:            'coffee' | 'tea';
+  customization:    DrinkCustomization;
+  isFree:           boolean;
+  priceCoffeePaise: number | null;
+  priceTeaPaise:    number | null;
+  onBack:           () => void;
+  onPay:            () => void;
+  loading:          boolean;
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between py-3 border-b border-white/[0.07] last:border-0">
+      <span className="text-white/40 text-sm">{label}</span>
+      <span className="text-white text-sm font-medium">{value}</span>
+    </div>
+  );
+}
+
+export default function OrderSummary({ drink, customization, isFree, priceCoffeePaise, priceTeaPaise, onBack, onPay, loading }: Props) {
+  const price = getMachineDrinkPrice(
+    { is_free: isFree, price_coffee_paise: priceCoffeePaise, price_tea_paise: priceTeaPaise },
+    drink,
+  );
+
+  return (
+    <div>
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1 text-white/40 hover:text-white/70 text-sm mb-6 transition-colors"
+      >
+        <ChevronLeft size={16} /> Back
+      </button>
+
+      <h2 className="display text-3xl text-white mb-1">Review your <span className="italic text-coffee-300">order</span></h2>
+      <p className="text-white/40 text-sm mb-8">Everything look right?</p>
+
+      {/* Summary card */}
+      <div className="glass rounded-3xl p-5 mb-6">
+        <Row
+          label="Drink"
+          value={drink === 'coffee' ? '☕ Filter Coffee' : '🍵 Tea'}
+        />
+        <Row label="Size"     value="Regular · 100ml" />
+        <Row label="Strength" value={cap(customization.strength)} />
+        <Row label="Milk"     value={customization.milk ? 'With milk' : 'Black (no milk)'} />
+        <div className="flex justify-between pt-4 mt-1">
+          <span className="font-semibold text-white">Total</span>
+          <span className="text-coffee-400 font-bold text-xl">
+            {isFree ? 'FREE' : formatPrice(price)}
+          </span>
+        </div>
+      </div>
+
+      {/* Payment badge */}
+      {isFree ? (
+        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-2xl px-4 py-3 mb-6">
+          <span className="text-2xl">🎁</span>
+          <div>
+            <p className="text-green-300 text-sm font-medium">Complimentary drink</p>
+            <p className="text-white/30 text-xs">No payment required on this machine</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-6">
+          <span className="text-2xl">📱</span>
+          <div>
+            <p className="text-white/80 text-sm font-medium">Pay via UPI</p>
+            <p className="text-white/30 text-xs">GPay, PhonePe, Paytm & more</p>
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={onPay}
+        disabled={loading}
+        className="w-full py-4 rounded-2xl bg-coffee-500 hover:bg-coffee-400
+          disabled:opacity-50 disabled:cursor-not-allowed
+          text-white font-semibold text-base transition-all duration-150
+          active:scale-[.98] shadow-glow-amber flex items-center justify-center gap-2"
+      >
+        {loading ? (
+          <>
+            <Loader2 size={18} className="animate-spin" />
+            {isFree ? 'Placing order…' : 'Opening payment…'}
+          </>
+        ) : isFree ? (
+          'Place order'
+        ) : (
+          `Pay ${formatPrice(price)}`
+        )}
+      </button>
+
+      <p className="text-center text-white/20 text-xs mt-4">
+        {isFree ? 'Powered by Lyra' : 'Secured by Razorpay · 256-bit encrypted'}
+      </p>
+    </div>
+  );
+}
