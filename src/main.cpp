@@ -753,8 +753,21 @@ void ackOrder(const String& orderId, const char* status, const char* error) {
 void sendHeartbeat() {
   String resp;
   int code = httpRequest("POST", "/api/machine/heartbeat", "{}", resp);
-  if (code >= 200 && code < 300) lastNetOkAt = millis();
-  Serial.printf("[hb] HTTP %d\n", code);
+  // Only count it as a real heartbeat if the JSON shape matches.
+  // Cloudflare can return HTTP 200 with a "Just a moment…" challenge
+  // page when its bot-fight rules trip on the ESP's user agent — in
+  // that case the route never runs and last_seen_at stays stale even
+  // though the firmware sees a 2xx.
+  bool ok = (code >= 200 && code < 300) && resp.indexOf("\"ok\":true") >= 0;
+  if (ok) lastNetOkAt = millis();
+  // Log a body snippet on failure so we can tell a real backend
+  // error from a Cloudflare interstitial.
+  if (!ok) {
+    String snippet = resp.substring(0, 120);
+    Serial.printf("[hb] HTTP %d (rejected) body=%s\n", code, snippet.c_str());
+  } else {
+    Serial.printf("[hb] HTTP %d ok\n", code);
+  }
 }
 
 // ================================================================
