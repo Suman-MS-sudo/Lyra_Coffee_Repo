@@ -24,7 +24,53 @@ export async function GET(req: NextRequest) {
     .update({ last_seen_at: new Date().toISOString() })
     .eq('id', auth.machineId);
 
-  // Pick oldest paid order for this machine.
+  // ── Stuck-order recovery ─────────────────────────────────────
+  // If a previous poll claimed an order (paid → dispensing) but the
+  // TLS response never reached the ESP, the order would sit in
+  // `dispensing` forever and the customer page would hang on
+  // "Brewing…". Re-deliver any of THIS machine's orders that have
+  // been in `dispensing` for more than STUCK_DISPENSING_MS without
+  // an ack. The firmware just re-runs the recipe and acks — same
+  // physical outcome as the original lost reply.
+  const STUCK_DISPENSING_MS = 30_000;
+  const stuckCutoff = new Date(Date.now() - STUCK_DISPENSING_MS).toISOString();
+
+  const { data: stuck } = await supabaseAdmin
+    .from('coffee_orders')
+    .select('id, drink_type, customization, updated_at')
+    .eq('machine_id', auth.machineId)
+    .eq('status', 'dispensing')
+    .lt('updated_at', stuckCutoff)
+    .order('updated_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (stuck) {
+    // Bump updated_at so we don't replay every 3 s while the ESP is
+    // running the recipe. STUCK_DISPENSING_MS gives it room to ack.
+    await supabaseAdmin
+      .from('coffee_orders')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', stuck.id);
+
+    await supabaseAdmin.from('coffee_dispense_log').insert({
+      order_id:   stuck.id,
+      machine_id: auth.machineId,
+      status:     'sent',
+      attempt:    2,
+      error_message: 'redelivered after stuck dispensing window',
+    });
+
+    console.warn('[machine/poll] redelivering stuck order', stuck.id);
+
+    return Response.json({
+      order_id:      stuck.id,
+      drink_type:    stuck.drink_type,
+      customization: stuck.customization,
+    });
+  }
+
+  // ── Fresh paid order ─────────────────────────────────────────
   const { data: order, error } = await supabaseAdmin
     .from('coffee_orders')
     .select('id, drink_type, customization, status')
