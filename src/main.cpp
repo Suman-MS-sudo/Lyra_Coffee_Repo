@@ -609,8 +609,16 @@ bool identifyWithServer() {
 void pollOnce() {
   String body;
   int code = httpRequest("GET", "/api/machine/poll", "", body);
-  if (code == 204) return;
-  if (code == 200 && body.length() < 5) return;
+  static unsigned long lastQuietLog = 0;
+  if (code == 204 || (code == 200 && body.length() < 5)) {
+    // Log "no orders" once a minute so the serial console proves
+    // polling is alive without flooding it every 3 s.
+    if (millis() - lastQuietLog > 60000) {
+      lastQuietLog = millis();
+      Serial.println(F("[poll] idle (no orders)"));
+    }
+    return;
+  }
   if (code < 200 || code >= 300) {
     Serial.printf("[poll] HTTP %d body=%s\n", code, body.c_str());
     return;
