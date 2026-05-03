@@ -92,8 +92,12 @@ constexpr unsigned long BTN_LOCKOUT_MS      = 1500;
 
 // Hardware task watchdog. If loop() stops feeding it for this long
 // (e.g. a TLS handshake wedges a whole minute), the chip reboots
-// rather than going silent until someone notices.
-constexpr uint32_t WDT_TIMEOUT_S         = 30;
+// rather than going silent until someone notices. The first cold
+// TLS handshake on ESP32 + mbedtls can legitimately take 15-25 s,
+// and setHandshakeTimeout() is not reliably enforced on core 3.x,
+// so give ourselves real headroom here. We also feed the WDT
+// around each blocking HTTP call inside httpRequest().
+constexpr uint32_t WDT_TIMEOUT_S         = 60;
 
 // Software liveness guard. If neither poll nor heartbeat has
 // succeeded in this window we assume the network stack is wedged
@@ -564,6 +568,12 @@ static int httpRequest(const char* method, const String& path,
   HTTPClient http;
   http.setConnectTimeout(8000);
   http.setTimeout(8000);
+
+  // Feed the watchdog before each blocking step. The TLS handshake
+  // and the POST/GET both run on the loop task synchronously and
+  // can each take >10 s on a cold connection; without these resets
+  // the WDT panics mid-handshake.
+  esp_task_wdt_reset();
   if (!http.begin(client, baseUrl() + path)) {
     Serial.println(F("[http] begin failed"));
     return -1;
@@ -580,9 +590,11 @@ static int httpRequest(const char* method, const String& path,
   }
   if (body.length()) http.addHeader("Content-Type", "application/json");
 
+  esp_task_wdt_reset();
   int code;
   if (strcmp(method, "POST") == 0) code = http.POST(body);
   else                              code = http.GET();
+  esp_task_wdt_reset();
 
   outBody = http.getString();
   http.end();
