@@ -57,46 +57,17 @@ export async function POST(req: NextRequest) {
     return apiError('Failed to place order', 500);
   }
 
-  // ── Trigger dispense (fire-and-forget) ──────────────────────────
-  triggerDispense(
-    dbOrder.id,
+  // ── Mark as ready for the machine to pick up via /api/machine/poll ─
+  // The ESP32 long-polls for orders in `paid` status, runs the recipe,
+  // and ACKs back. No need to self-call dispense here (which used to
+  // fetch through the public hostname and tripped Cloudflare's bot
+  // challenge).
+  console.log('[free-order] queued', {
+    order_id:   dbOrder.id,
     machine_id,
     drink_type,
-    customization as Record<string, unknown>,
-    `free_${dbOrder.id}`,
-  ).catch(err => console.error('[free-order] Dispense trigger failed:', err));
-
-  return Response.json({ order_id: dbOrder.id });
-}
-
-async function triggerDispense(
-  orderId:       string,
-  machineId:     string,
-  drinkType:     string,
-  customization: Record<string, unknown>,
-  paymentId:     string,
-) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const secret  = process.env.MACHINE_API_SECRET;
-  if (!secret) throw new Error('MACHINE_API_SECRET not set');
-
-  const res = await fetch(`${baseUrl}/api/machine/dispense`, {
-    method:  'POST',
-    headers: {
-      'Content-Type':    'application/json',
-      'X-Machine-Token': secret,
-    },
-    body: JSON.stringify({
-      machine_id:    machineId,
-      order_id:      orderId,
-      drink_type:    drinkType,
-      customization,
-      payment_id:    paymentId,
-    }),
+    payment_id: `free_${dbOrder.id}`,
   });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Dispense API returned ${res.status}: ${text}`);
-  }
+  return Response.json({ order_id: dbOrder.id });
 }

@@ -89,52 +89,16 @@ export async function POST(req: NextRequest) {
     .update({ status: 'paid' })
     .eq('id', order.id);
 
-  // ── Trigger machine dispense (fire-and-forget) ─────────────────
-  // We don't await this — payment confirmation to user is not blocked
-  triggerDispense(
-    order.id,
-    order.machine_id,
-    order.drink_type,
-    order.customization as Record<string, unknown>,
-    razorpay_payment_id,
-  ).catch(err => console.error('[verify] Dispense trigger failed:', err));
-
-  return Response.json({ payment_id: razorpay_payment_id });
-}
-
-/**
- * Call the internal dispense API route.
- * In production this would be an internal call; we use an absolute URL here
- * to keep the architecture clean and the dispense API independently testable.
- */
-async function triggerDispense(
-  orderId:       string,
-  machineId:     string,
-  drinkType:     string,
-  customization: Record<string, unknown>,
-  paymentId:     string,
-) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const secret  = process.env.MACHINE_API_SECRET;
-  if (!secret) throw new Error('MACHINE_API_SECRET not set');
-
-  const res = await fetch(`${baseUrl}/api/machine/dispense`, {
-    method:  'POST',
-    headers: {
-      'Content-Type':    'application/json',
-      'X-Machine-Token': secret,
-    },
-    body: JSON.stringify({
-      machine_id:    machineId,
-      order_id:      orderId,
-      drink_type:    drinkType,
-      customization,
-      payment_id:    paymentId,
-    }),
+  // ── Order is now `paid`; the ESP32 long-polls /api/machine/poll
+  // and will pick it up, run the recipe, then ACK back. We used to
+  // self-call /api/machine/dispense over the public hostname here,
+  // but that both tripped Cloudflare's bot challenge and bypassed
+  // the physical machine entirely.
+  console.log('[verify] queued', {
+    order_id:   order.id,
+    machine_id: order.machine_id,
+    payment_id: razorpay_payment_id,
   });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Dispense API returned ${res.status}: ${text}`);
-  }
+  return Response.json({ payment_id: razorpay_payment_id });
 }
