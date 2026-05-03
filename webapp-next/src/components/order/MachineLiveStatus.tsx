@@ -1,0 +1,92 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Wifi, WifiOff } from 'lucide-react';
+
+interface StatusResp {
+  status:       'active' | 'inactive' | 'maintenance';
+  last_seen_at: string | null;
+  online:       boolean;
+}
+
+/**
+ * Tiny polling chip that shows whether a coffee machine is
+ * currently reachable. Polls /api/machine/[id]/status every 15s.
+ *
+ * Purely cosmetic — the customer order flow will still fail
+ * gracefully if the machine is offline, but the visual cue saves
+ * the buyer from initiating a payment they can't fulfil.
+ */
+export default function MachineLiveStatus({
+  machineId,
+  initialLastSeenAt = null,
+  className = '',
+}: {
+  machineId:          string;
+  initialLastSeenAt?: string | null;
+  className?:         string;
+}) {
+  const [lastSeenAt, setLastSeenAt] = useState<string | null>(initialLastSeenAt);
+  const [online,     setOnline]     = useState<boolean>(false);
+  const [now,        setNow]        = useState<number>(() => Date.now());
+
+  // Local clock tick so the relative label updates between fetches.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Poll the lightweight status endpoint.
+  useEffect(() => {
+    let cancelled = false;
+    const fetchOnce = async () => {
+      try {
+        const res = await fetch(`/api/machine/${machineId}/status`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = (await res.json()) as StatusResp;
+        if (cancelled) return;
+        setLastSeenAt(data.last_seen_at);
+        setOnline(data.online);
+      } catch {
+        // Network blip — keep the previous value rather than flickering offline.
+      }
+    };
+    fetchOnce();
+    const id = setInterval(fetchOnce, 15_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [machineId]);
+
+  const label = (() => {
+    if (online) return 'Online';
+    if (!lastSeenAt) return 'Offline';
+    const diffSec = Math.max(0, Math.floor((now - new Date(lastSeenAt).getTime()) / 1000));
+    if (diffSec < 60)     return `Offline · ${diffSec}s ago`;
+    if (diffSec < 3600)   return `Offline · ${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86_400) return `Offline · ${Math.floor(diffSec / 3600)}h ago`;
+    return 'Offline';
+  })();
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full border ${
+        online
+          ? 'bg-green-500/15 text-green-400 border-green-500/25'
+          : 'bg-white/5 text-white/40 border-white/10'
+      } ${className}`}
+      title={lastSeenAt ? `Last seen ${new Date(lastSeenAt).toLocaleString()}` : 'Never seen'}
+    >
+      {online ? (
+        <>
+          <span className="relative inline-flex w-1.5 h-1.5">
+            <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-75" />
+            <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-green-400" />
+          </span>
+          <Wifi size={10} aria-hidden />
+        </>
+      ) : (
+        <WifiOff size={10} aria-hidden />
+      )}
+      <span>{label}</span>
+    </span>
+  );
+}

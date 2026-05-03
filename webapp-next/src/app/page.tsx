@@ -33,7 +33,7 @@ export default async function HomePage({
 
   const { data: machine, error } = await supabaseAdmin
     .from('coffee_machines')
-    .select('id, name, location, status, is_free, price_coffee_paise, price_tea_paise')
+    .select('id, name, location, status, is_free, price_coffee_paise, price_tea_paise, last_seen_at')
     .eq('id', machineId)
     .single();
 

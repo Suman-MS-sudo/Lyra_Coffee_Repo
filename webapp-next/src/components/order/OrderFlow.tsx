@@ -7,6 +7,7 @@ import DrinkSelector from './DrinkSelector';
 import CustomizationPanel from './CustomizationPanel';
 import OrderSummary from './OrderSummary';
 import PaymentSuccess from './PaymentSuccess';
+import MachineLiveStatus from './MachineLiveStatus';
 import { initiateRazorpayPayment } from '@/lib/actions/payment';
 import { BrandFooterCompact } from '@/components/branding/BrandFooter';
 import { BrandMonogram, BrandWordmark } from '@/components/branding/BrandWordmark';
@@ -36,7 +37,9 @@ const DEFAULT_CUSTOMIZATION: DrinkCustomization = {
 export default function OrderFlow({
   machine,
 }: {
-  machine: Pick<CoffeeMachine, 'id' | 'name' | 'location' | 'is_free' | 'price_coffee_paise' | 'price_tea_paise'>;
+  machine: Pick<CoffeeMachine, 'id' | 'name' | 'location' | 'is_free' | 'price_coffee_paise' | 'price_tea_paise'> & {
+    last_seen_at?: string | null;
+  };
 }) {
   const [step,       setStep]       = useState<Step>('drink');
   const [direction,  setDirection]  = useState(1);
@@ -120,8 +123,12 @@ export default function OrderFlow({
           <p className="text-[10px] font-medium text-white/40 uppercase tracking-[0.28em] mb-1.5">
             {machine.location ?? 'Lyra Enterprises'}
           </p>
-          <h1 className="display text-2xl text-white leading-tight">{machine.name}</h1>
-        </div>
+          <h1 className="display text-2xl text-white leading-tight">{machine.name}</h1>          <div className="mt-2">
+            <MachineLiveStatus
+              machineId={machine.id}
+              initialLastSeenAt={machine.last_seen_at ?? null}
+            />
+          </div>        </div>
         <BrandMonogram size={44} />
       </header>
 
