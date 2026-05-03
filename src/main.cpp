@@ -185,15 +185,19 @@ void setup() {
   // ESP32 Arduino core 3.x uses a config struct; older 2.x took
   // (timeout_seconds, panic). Pick at compile time.
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+  // Arduino-ESP32 core 3.x auto-initializes TWDT on the loop task with
+  // a short default (~5 s) — that's why a fresh TLS handshake (~16 s)
+  // panics us. Reconfigure (not re-init) to extend the timeout.
   esp_task_wdt_config_t wdt_cfg = {
     .timeout_ms     = WDT_TIMEOUT_S * 1000U,
     .idle_core_mask = 0,
     .trigger_panic  = true,
   };
-  esp_task_wdt_init(&wdt_cfg);
+  esp_task_wdt_reconfigure(&wdt_cfg);
 #else
   esp_task_wdt_init(WDT_TIMEOUT_S, true);
 #endif
+  // loopTask is already subscribed by the core in 3.x; add() is idempotent.
   esp_task_wdt_add(NULL);
   lastNetOkAt = millis();
 
