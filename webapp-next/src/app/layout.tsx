@@ -3,12 +3,21 @@ import { Inter, Playfair_Display } from 'next/font/google';
 import { Toaster } from 'sonner';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display:  'swap',
+  fallback: ['system-ui', 'sans-serif'],
+  adjustFontFallback: false,
+});
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
-  weight: ['400', '500', '600', '700'],
-  style:  ['normal', 'italic'],
+  weight:  ['400', '500', '600', '700'],
+  style:   ['normal', 'italic'],
+  display: 'swap',
+  fallback: ['Georgia', 'serif'],
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
