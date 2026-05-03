@@ -26,16 +26,22 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date().toISOString();
-  const { error } = await supabaseAdmin
+  const { data: updated, error } = await supabaseAdmin
     .from('coffee_machines')
     .update({ last_seen_at: now })
-    .eq('id', auth.machineId);
+    .eq('id', auth.machineId)
+    .select('id, last_seen_at');
 
   if (error) {
     console.error('[machine/heartbeat]', error);
     return apiError('DB error', 500);
   }
-  console.log('[machine/heartbeat] ok', { mid: auth.machineId });
+  console.log('[machine/heartbeat] ok', {
+    mid:       auth.machineId,
+    rows:      updated?.length ?? 0,
+    written:   now,
+    readback:  updated?.[0]?.last_seen_at ?? null,
+  });
   return Response.json(
     { ok: true, server_time: now },
     {
