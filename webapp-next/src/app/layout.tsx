@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { Toaster } from 'sonner';
 import './globals.css';
@@ -25,8 +25,6 @@ export const metadata: Metadata = {
   description:
     'Order authentic South Indian filter coffee &amp; freshly brewed tea from your nearest Lyra machine. ' +
     'Manufactured by Lyra Enterprises, Chennai.',
-  themeColor:  '#D4A24A',
-  viewport:    'width=device-width, initial-scale=1, maximum-scale=1',
   icons:       {
     icon:    [
       { url: '/logo.png', type: 'image/png' },
@@ -34,6 +32,13 @@ export const metadata: Metadata = {
     apple:   '/logo.png',
     shortcut: '/logo.png',
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#D4A24A',
+  width:      'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
