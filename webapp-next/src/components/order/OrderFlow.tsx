@@ -194,6 +194,7 @@ export default function OrderFlow({
                 drink={order.drink ?? 'coffee'}
                 paymentId={order.paymentId}
                 amountPaise={order.amountPaise ?? 0}
+                orderId={order.orderId}
               />
             )}
           </motion.div>
