@@ -15,8 +15,15 @@ export const dynamic = 'force-dynamic';
  * Auth: Authorization: Bearer <api_key>, X-Machine-Id: <uuid>
  */
 export async function POST(req: NextRequest) {
+  const ua  = req.headers.get('user-agent') ?? '';
+  const mid = req.headers.get('x-machine-id') ?? '';
+  console.log('[machine/heartbeat] hit', { mid, ua });
+
   const auth = await authenticateMachine(req);
-  if (!auth.ok) return auth.res;
+  if (!auth.ok) {
+    console.warn('[machine/heartbeat] auth failed', { mid });
+    return auth.res;
+  }
 
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin
@@ -28,6 +35,7 @@ export async function POST(req: NextRequest) {
     console.error('[machine/heartbeat]', error);
     return apiError('DB error', 500);
   }
+  console.log('[machine/heartbeat] ok', { mid: auth.machineId });
   return Response.json(
     { ok: true, server_time: now },
     {
