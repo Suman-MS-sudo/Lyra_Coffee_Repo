@@ -46,20 +46,32 @@ export async function POST(req: NextRequest) {
   // Generate API key for the machine
   const { key, hash } = generateMachineApiKey();
 
+  const insertRow: Record<string, unknown> = {
+    name:         parsed.data.name,
+    location:     parsed.data.location ?? null,
+    status:       parsed.data.status,
+    api_key_hash: hash,
+    customer_id:  parsed.data.customer_id ?? null,
+    is_free:      parsed.data.is_free ?? false,
+    price_coffee_paise: parsed.data.price_coffee_paise ?? null,
+    price_tea_paise:    parsed.data.price_tea_paise ?? null,
+    mac_id:       parsed.data.mac_id ?? null,
+  };
+
   const { data, error } = await supabaseAdmin
     .from('coffee_machines')
-    .insert({
-      name:         parsed.data.name,
-      location:     parsed.data.location ?? null,
-      status:       parsed.data.status,
-      api_key_hash: hash,
-    })
-    .select('id, name, location, status, created_at')
+    .insert(insertRow)
+    .select(
+      'id, name, location, status, customer_id, is_free, price_coffee_paise, price_tea_paise, mac_id, created_at',
+    )
     .single();
 
   if (error) {
     console.error('[machines/POST]', error);
-    return apiError('Failed to create machine', 500);
+    if ((error as { code?: string }).code === '23505') {
+      return apiError('A machine with this MAC ID already exists', 409);
+    }
+    return apiError(`Failed to create machine: ${error.message}`, 500);
   }
 
   // Return the plaintext key ONCE — it cannot be retrieved again

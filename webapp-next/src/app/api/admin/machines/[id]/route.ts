@@ -8,8 +8,12 @@ import { z } from 'zod';
 const patchSchema = z.object({
   status:      z.enum(['active', 'inactive', 'maintenance']).optional(),
   name:        z.string().min(1).max(120).trim().optional(),
-  location:    z.string().max(255).trim().optional(),
+  location:    z.string().max(255).trim().nullable().optional(),
   customer_id: z.union([uuidSchema, z.null()]).optional(),
+  is_free:     z.boolean().optional(),
+  price_coffee_paise: z.number().int().min(0).max(100_000).nullable().optional(),
+  price_tea_paise:    z.number().int().min(0).max(100_000).nullable().optional(),
+  mac_id:      z.string().trim().max(64).regex(/^[A-Za-z0-9:_\-]+$/).nullable().optional(),
 });
 
 // ── PATCH /api/admin/machines/[id] ─────────────────────────────
@@ -36,14 +40,22 @@ export async function PATCH(
     .from('coffee_machines')
     .update(bodyParsed.data)
     .eq('id', parsed.data)
-    .select('id, name, location, status, customer_id, updated_at')
+    .select(
+      'id, name, location, status, customer_id, is_free, price_coffee_paise, price_tea_paise, mac_id, updated_at',
+    )
     .single();
 
-  if (error) return apiError('Failed to update machine', 500);
+  if (error) {
+    if ((error as { code?: string }).code === '23505') {
+      return apiError('A machine with this MAC ID already exists', 409);
+    }
+    return apiError(`Failed to update machine: ${error.message}`, 500);
+  }
   return Response.json(data);
 }
 
 // ── DELETE /api/admin/machines/[id] ────────────────────────────
+// ?force=true also wipes dependent orders / payments / dispense logs.
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -54,11 +66,48 @@ export async function DELETE(
   const parsed = uuidSchema.safeParse(params.id);
   if (!parsed.success) return apiError('Invalid machine ID', 400);
 
+  const machineId = parsed.data;
+  const force     = new URL(req.url).searchParams.get('force') === 'true';
+
+  // If force, clean up children first. Order matters: payments → dispense_log → orders.
+  if (force) {
+    // Find order ids for this machine to cascade payments
+    const { data: orderRows } = await supabaseAdmin
+      .from('coffee_orders')
+      .select('id')
+      .eq('machine_id', machineId);
+    const orderIds = (orderRows ?? []).map(r => r.id);
+
+    if (orderIds.length > 0) {
+      const { error: payErr } = await supabaseAdmin
+        .from('coffee_payments').delete().in('order_id', orderIds);
+      if (payErr) return apiError(`Failed to delete payments: ${payErr.message}`, 500);
+    }
+
+    const { error: dispErr } = await supabaseAdmin
+      .from('coffee_dispense_log').delete().eq('machine_id', machineId);
+    if (dispErr) return apiError(`Failed to delete dispense log: ${dispErr.message}`, 500);
+
+    const { error: ordErr } = await supabaseAdmin
+      .from('coffee_orders').delete().eq('machine_id', machineId);
+    if (ordErr) return apiError(`Failed to delete orders: ${ordErr.message}`, 500);
+  }
+
   const { error } = await supabaseAdmin
     .from('coffee_machines')
     .delete()
-    .eq('id', parsed.data);
+    .eq('id', machineId);
 
-  if (error) return apiError('Failed to delete machine', 500);
+  if (error) {
+    // 23503 = foreign_key_violation
+    const code = (error as { code?: string }).code;
+    if (code === '23503') {
+      return apiError(
+        'Machine has linked orders or dispense history. Retry with “force delete” to remove them, or disable the machine instead.',
+        409,
+      );
+    }
+    return apiError(`Failed to delete machine: ${error.message}`, 500);
+  }
   return Response.json({ ok: true });
 }

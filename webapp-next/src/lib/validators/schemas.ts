@@ -62,19 +62,37 @@ export const createCustomerSchema = z.object({
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
 
 // ── Admin: create machine ────────────────────────────────────────
+const pricePaise = z.number().int().min(0).max(100_000).nullable();
+const macIdSchema = z
+  .string()
+  .trim()
+  .max(64)
+  .regex(/^[A-Za-z0-9:_\-]+$/, 'MAC ID may only contain letters, digits, : _ -')
+  .nullable();
+
 export const createMachineSchema = z.object({
-  name:     z.string().min(1).max(120).trim(),
-  location: z.string().max(255).trim().optional(),
-  status:   z.enum(['active', 'inactive', 'maintenance']).default('inactive'),
+  name:               z.string().min(1).max(120).trim(),
+  location:           z.string().max(255).trim().optional().nullable(),
+  status:             z.enum(['active', 'inactive', 'maintenance']).default('inactive'),
+  customer_id:        z.union([uuidSchema, z.null()]).optional(),
+  is_free:            z.boolean().optional().default(false),
+  price_coffee_paise: pricePaise.optional(),
+  price_tea_paise:    pricePaise.optional(),
+  mac_id:             macIdSchema.optional(),
 });
 export type CreateMachineInput = z.infer<typeof createMachineSchema>;
 
 // ── Admin: update machine ────────────────────────────────────────
 export const updateMachineSchema = z.object({
-  id:       uuidSchema,
-  name:     z.string().min(1).max(120).trim().optional(),
-  location: z.string().max(255).trim().optional(),
-  status:   z.enum(['active', 'inactive', 'maintenance']).optional(),
+  id:                 uuidSchema,
+  name:               z.string().min(1).max(120).trim().optional(),
+  location:           z.string().max(255).trim().optional().nullable(),
+  status:             z.enum(['active', 'inactive', 'maintenance']).optional(),
+  customer_id:        z.union([uuidSchema, z.null()]).optional(),
+  is_free:            z.boolean().optional(),
+  price_coffee_paise: pricePaise.optional(),
+  price_tea_paise:    pricePaise.optional(),
+  mac_id:             macIdSchema.optional(),
 });
 export type UpdateMachineInput = z.infer<typeof updateMachineSchema>;
 

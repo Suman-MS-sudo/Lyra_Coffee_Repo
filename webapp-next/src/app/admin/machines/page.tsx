@@ -9,7 +9,7 @@ export default async function MachinesPage() {
   const [machinesRes, customersRes] = await Promise.all([
     supabaseAdmin
       .from('coffee_machines')
-      .select('id, name, location, status, api_key_hash, customer_id, created_at, updated_at')
+      .select('id, name, location, status, api_key_hash, customer_id, is_free, price_coffee_paise, price_tea_paise, mac_id, created_at, updated_at')
       .order('created_at', { ascending: false }),
     supabaseAdmin
       .from('coffee_customers')

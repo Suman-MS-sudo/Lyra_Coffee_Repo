@@ -162,6 +162,11 @@ ALTER TABLE coffee_machines
         CHECK (price_tea_paise    IS NULL OR price_tea_paise    >= 0),
     ADD COLUMN IF NOT EXISTS is_free            BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Hardware identifier — usually the ESP32 MAC address.
+ALTER TABLE coffee_machines
+    ADD COLUMN IF NOT EXISTS mac_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_coffee_machines_mac_id ON coffee_machines(mac_id) WHERE mac_id IS NOT NULL;
+
 -- ================================================================
 --  Row Level Security (RLS)
 --  All tables are locked down. The Next.js server uses the
