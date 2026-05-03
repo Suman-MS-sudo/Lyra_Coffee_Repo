@@ -12,7 +12,13 @@
 const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
-const next  = require('next');
+const { createRequire } = require('module');
+
+// Resolve Next.js from the webapp-next package (cwd) since this script
+// lives outside it under /deploy.
+const APP_DIR  = path.resolve(process.cwd());        // /var/lyra/webapp-next
+const appReq   = createRequire(path.join(APP_DIR, 'package.json'));
+const next     = appReq('next');
 
 const PORT = parseInt(process.env.PORT || '443', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -31,7 +37,7 @@ for (const p of [CERT, KEY]) {
 }
 
 const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev, dir: path.resolve(__dirname, '..', 'webapp-next') });
+const app = next({ dev, dir: APP_DIR });
 const handle = app.getRequestHandler();
 
 function loadTls() {
