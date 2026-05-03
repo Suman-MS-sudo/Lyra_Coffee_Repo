@@ -25,6 +25,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "secrets.h"
+#include "wifi_provision.h"
 
 // ── Pin configuration ───────────────────────────────────────────
 constexpr int PIN_MILK_A   = 26;
@@ -54,10 +55,16 @@ constexpr uint16_t AGITATE_MS = 3000;
 constexpr uint16_t FLUSH_MS   = 3000;
 
 // ── Network behavior ────────────────────────────────────────────
-constexpr unsigned long POLL_INTERVAL_MS = 3000;     // poll cadence when idle
-constexpr unsigned long WIFI_RETRY_MS    = 15000;    // reconnect cadence
-constexpr unsigned long BTN_DEBOUNCE_MS  = 50;
-constexpr unsigned long BTN_LOCKOUT_MS   = 1500;     // ignore re-press after dispense start
+constexpr unsigned long POLL_INTERVAL_MS  = 3000;     // poll cadence when idle
+constexpr unsigned long WIFI_RETRY_MS     = 15000;    // reconnect cadence
+constexpr unsigned long BTN_DEBOUNCE_MS   = 50;
+constexpr unsigned long BTN_LOCKOUT_MS    = 1500;     // ignore re-press after dispense start
+
+// Long-press the milk button to enter Wi-Fi provisioning portal.
+// Hold ~10 s during portal trigger to also wipe stored credentials
+// (factory-reset gesture).
+constexpr unsigned long PROV_HOLD_MS      = 3000;     // 3 s
+constexpr unsigned long PROV_RESET_HOLD_MS = 10000;   // 10 s = wipe creds
 
 // ── Globals ─────────────────────────────────────────────────────
 unsigned long lastPollAt   = 0;
@@ -66,11 +73,16 @@ unsigned long btnLockUntil = 0;
 
 bool busy = false;       // a dispense is in progress; pause polling
 
+// Active Wi-Fi creds (resolved at boot from NVS or secrets.h fallback)
+char activeSsid[33] = {0};
+char activePass[65] = {0};
+
 // ── Forward declarations ────────────────────────────────────────
 void wifiEnsure();
 void pollOnce();
 void ackOrder(const String& orderId, const char* status, const char* error = nullptr);
 void runRecipe(const String& drink, const Recipe& r, bool withMilk);
+void checkProvisioningGesture();
 
 void forwardMotor(int a, int b, uint16_t ms);
 void reverseMotor(int a, int b, uint16_t ms);
@@ -94,15 +106,26 @@ void setup() {
   pinMode(PIN_BTN_TEA,    INPUT_PULLUP);
   stopAll();
 
+  // Resolve credentials: prefer saved, fall back to compile-time defaults
+  if (!wifiProv::loadCredentials(activeSsid, sizeof(activeSsid),
+                                 activePass, sizeof(activePass))) {
+    strlcpy(activeSsid, WIFI_SSID,     sizeof(activeSsid));
+    strlcpy(activePass, WIFI_PASSWORD, sizeof(activePass));
+  }
+  Serial.printf("[boot] using ssid=\"%s\"\n", activeSsid);
+
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(false);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.printf("[wifi] connecting to %s\n", WIFI_SSID);
+  WiFi.begin(activeSsid, activePass);
+  Serial.printf("[wifi] connecting to %s\n", activeSsid);
 }
 
 // ── loop() ──────────────────────────────────────────────────────
 void loop() {
+  // Highest priority: enter Wi-Fi provisioning portal if requested
+  checkProvisioningGesture();
+
   wifiEnsure();
 
   // ── Local buttons (always available, even offline) ───────────
@@ -145,7 +168,7 @@ void wifiEnsure() {
   lastWifiTry = millis();
   Serial.println(F("[wifi] reconnecting"));
   WiFi.disconnect();
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(activeSsid, activePass);
 
   // wait briefly so we don't hammer the radio
   unsigned long t0 = millis();
@@ -156,6 +179,37 @@ void wifiEnsure() {
     Serial.print(F("[wifi] connected: "));
     Serial.println(WiFi.localIP());
   }
+}
+
+// ── Long-press detection: enter provisioning portal ─────────────
+void checkProvisioningGesture() {
+  if (busy) return;
+  if (digitalRead(PIN_BTN_MILK) != LOW) return;
+
+  // Sample for the hold duration. If still pressed after PROV_HOLD_MS,
+  // launch the portal. If held for PROV_RESET_HOLD_MS, also wipe creds first.
+  unsigned long pressStart = millis();
+  while (digitalRead(PIN_BTN_MILK) == LOW &&
+         millis() - pressStart < PROV_RESET_HOLD_MS + 200) {
+    delay(20);
+  }
+  unsigned long held = millis() - pressStart;
+  if (held < PROV_HOLD_MS) return;   // short press — let the normal handler dispense
+
+  if (held >= PROV_RESET_HOLD_MS) {
+    Serial.println(F("[prov] factory-reset hold — wiping saved Wi-Fi"));
+    wifiProv::clearCredentials();
+  } else {
+    Serial.println(F("[prov] long-press detected — entering portal"));
+  }
+
+  // Block here until provisioning completes (it auto-restarts on save).
+  wifiProv::beginPortal();
+
+  // If we get here, provisioning timed out without saving — fall through
+  // to normal operation with whatever creds we had before.
+  btnLockUntil = millis() + 2000;
+  lastWifiTry  = 0;          // force a fresh reconnect attempt
 }
 
 // ── HTTP helper: build a configured client + URL ────────────────
