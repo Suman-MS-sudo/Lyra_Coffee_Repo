@@ -48,6 +48,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
+#include <esp_mac.h>
 
 // ────────────────────────────────────────────────────────────────
 //  Pin map  (per the user's wiring)
@@ -108,7 +109,15 @@ constexpr unsigned long LIVENESS_TIMEOUT_MS = 5UL * 60UL * 1000UL;
 // TLS handshake cap (seconds). Without this, WiFiClientSecure can
 // stall indefinitely on a flaky network and HTTPClient::setTimeout
 // won't help — that only covers the read/write phase.
-constexpr uint32_t TLS_HANDSHAKE_TIMEOUT_S = 8;
+constexpr uint32_t TLS_HANDSHAKE_TIMEOUT_S = 15;
+
+// HTTP connect/read timeouts. Each request opens a brand-new TLS
+// socket (no keep-alive), so cold round-trips can legitimately take
+// 10–15 s on residential DSL. Keep these well above the median
+// observed latency or you'll see HTTPC_ERROR_READ_TIMEOUT (-11)
+// on every call.
+constexpr uint32_t HTTP_CONNECT_TIMEOUT_MS = 15000;
+constexpr uint32_t HTTP_READ_TIMEOUT_MS    = 20000;
 
 // Long-press provisioning button to enter Wi-Fi setup portal
 constexpr unsigned long PROV_HOLD_MS        = 3000;
@@ -566,8 +575,8 @@ static int httpRequest(const char* method, const String& path,
 #endif
 
   HTTPClient http;
-  http.setConnectTimeout(8000);
-  http.setTimeout(8000);
+  http.setConnectTimeout(HTTP_CONNECT_TIMEOUT_MS);
+  http.setTimeout(HTTP_READ_TIMEOUT_MS);
 
   // Feed the watchdog before each blocking step. The TLS handshake
   // and the POST/GET both run on the loop task synchronously and
@@ -605,8 +614,17 @@ static int httpRequest(const char* method, const String& path,
 //  Identity (MAC-driven self-provisioning)
 // ================================================================
 void readMacAddress(char* out, size_t outLen) {
-  uint8_t mac[6];
-  WiFi.macAddress(mac);
+  // Read the base MAC straight from eFuse so this works even before
+  // the Wi-Fi driver is started. WiFi.macAddress() returns zeros (or
+  // a stale cached value) if called pre-WiFi.mode() on some core
+  // versions — that's why the ID looked "static" across boots.
+  uint8_t mac[6] = {0};
+  esp_err_t err = esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  if (err != ESP_OK) {
+    // Fallback to the runtime API; if that also fails we'll print
+    // 00:00:... which makes the failure obvious in the serial log.
+    WiFi.macAddress(mac);
+  }
   snprintf(out, outLen, "%02X:%02X:%02X:%02X:%02X:%02X",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
@@ -680,7 +698,12 @@ bool identifyWithServer() {
 
   saveIdentity(id, key, name);
   identityReady = true;
-  Serial.printf("[identify] OK \u2014 id=%s name=\"%s\"\n", id, name);
+  // Log just the prefix of the new key so we can correlate with
+  // server logs without dumping the full secret.
+  char keyPrefix[9] = {0};
+  strlcpy(keyPrefix, key, sizeof(keyPrefix));
+  Serial.printf("[identify] OK \u2014 id=%s name=\"%s\" key=%s… (len=%u)\n",
+                id, name, keyPrefix, (unsigned)strlen(key));
   return true;
 }
 
@@ -699,6 +722,15 @@ void pollOnce() {
       lastQuietLog = millis();
       Serial.println(F("[poll] idle (no orders)"));
     }
+    return;
+  }
+  // 401/403 means the stored API key no longer matches the server
+  // (e.g. the machine row was re-created or the key was rotated).
+  // Wipe identity so the next loop tick re-runs /identify and picks
+  // up the current key — no manual factory-reset needed.
+  if (code == 401 || code == 403) {
+    Serial.printf("[poll] HTTP %d \u2014 stale identity, clearing and re-identifying\n", code);
+    clearIdentity();
     return;
   }
   if (code < 200 || code >= 300) {
@@ -753,6 +785,12 @@ void ackOrder(const String& orderId, const char* status, const char* error) {
 void sendHeartbeat() {
   String resp;
   int code = httpRequest("POST", "/api/machine/heartbeat", "{}", resp);
+  // Same self-heal as pollOnce(): a 401 means our key is stale.
+  if (code == 401 || code == 403) {
+    Serial.printf("[hb] HTTP %d \u2014 stale identity, clearing and re-identifying\n", code);
+    clearIdentity();
+    return;
+  }
   // Only count it as a real heartbeat if the JSON shape matches.
   // Cloudflare can return HTTP 200 with a "Just a moment…" challenge
   // page when its bot-fight rules trip on the ESP's user agent — in
