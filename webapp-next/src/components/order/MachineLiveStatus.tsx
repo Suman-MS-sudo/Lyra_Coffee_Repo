@@ -28,13 +28,23 @@ export default function MachineLiveStatus({
 }) {
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(initialLastSeenAt);
   const [online,     setOnline]     = useState<boolean>(false);
-  const [now,        setNow]        = useState<number>(() => Date.now());
+  const [now,        setNow]        = useState<number | null>(null);
+  const [mounted,    setMounted]    = useState(false);
+
+  // Initialize the clock on the client only — using Date.now() during
+  // SSR causes a hydration mismatch when the client re-renders a few
+  // seconds later with a different "Xs ago" label.
+  useEffect(() => {
+    setMounted(true);
+    setNow(Date.now());
+  }, []);
 
   // Local clock tick so the relative label updates between fetches.
   useEffect(() => {
+    if (!mounted) return;
     const id = setInterval(() => setNow(Date.now()), 5_000);
     return () => clearInterval(id);
-  }, []);
+  }, [mounted]);
 
   // Poll the lightweight status endpoint.
   useEffect(() => {
@@ -58,6 +68,7 @@ export default function MachineLiveStatus({
 
   const label = (() => {
     if (online) return 'Online';
+    if (!mounted || now === null) return 'Checking…';
     if (!lastSeenAt) return 'Offline';
     const diffSec = Math.max(0, Math.floor((now - new Date(lastSeenAt).getTime()) / 1000));
     if (diffSec < 60)     return `Offline · ${diffSec}s ago`;
@@ -73,7 +84,7 @@ export default function MachineLiveStatus({
           ? 'bg-green-500/15 text-green-400 border-green-500/25'
           : 'bg-white/5 text-white/40 border-white/10'
       } ${className}`}
-      title={lastSeenAt ? `Last seen ${new Date(lastSeenAt).toLocaleString()}` : 'Never seen'}
+      title={lastSeenAt && mounted ? `Last seen ${new Date(lastSeenAt).toLocaleString()}` : 'Never seen'}
     >
       {online ? (
         <>
