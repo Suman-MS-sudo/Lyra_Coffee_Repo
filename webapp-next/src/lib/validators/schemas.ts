@@ -21,11 +21,12 @@ export const createOrderSchema = z.object({
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
 // ── Customer: verify payment ──────────────────────────────────────
+// Note: we look the order up server-side by razorpay_order_id, so we
+// deliberately do NOT require the internal order_id from the client.
 export const verifyPaymentSchema = z.object({
   razorpay_order_id:   z.string().min(1).max(256),
   razorpay_payment_id: z.string().min(1).max(256),
   razorpay_signature:  z.string().min(1).max(512),
-  order_id:            uuidSchema,
 });
 export type VerifyPaymentInput = z.infer<typeof verifyPaymentSchema>;
 
