@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Coffee, Sparkles, XCircle } from 'lucide-react';
 import { formatPrice } from '@/lib/utils/cn';
 
 type LiveStatus =
@@ -12,6 +12,354 @@ type LiveStatus =
   | 'dispensed'
   | 'failed'
   | 'refunded';
+
+/* ───────────────────────── Pipeline mapping ─────────────────────── */
+
+const STEPS = ['Payment', 'Brewing', 'Ready'] as const;
+
+function stepIndexOf(s: LiveStatus): number {
+  if (s === 'dispensed')                      return 3; // all done
+  if (s === 'dispensing')                     return 2; // pouring
+  if (s === 'paid')                           return 1; // brewing
+  return 0;
+}
+
+/* ────────────────────────────  Magic bits  ──────────────────────── */
+
+/** Slow floating sparkles that drift around the cup. */
+function SparkleField() {
+  // Stable pseudo-random positions so SSR doesn't flicker on hydrate.
+  const dots = useMemo(
+    () =>
+      Array.from({ length: 14 }).map((_, i) => {
+        const a = (i * 137.5) * (Math.PI / 180); // golden-angle scatter
+        const r = 90 + ((i * 23) % 40);
+        return {
+          id:    i,
+          x:     Math.cos(a) * r,
+          y:     Math.sin(a) * r,
+          size:  3 + ((i * 7) % 4),
+          delay: (i % 7) * 0.25,
+          dur:   3 + ((i * 11) % 4),
+        };
+      }),
+    [],
+  );
+
+  return (
+    <>
+      {dots.map(d => (
+        <motion.span
+          key={d.id}
+          className="absolute rounded-full bg-coffee-300"
+          style={{
+            width:        d.size,
+            height:       d.size,
+            top:          '50%',
+            left:         '50%',
+            x:            d.x,
+            y:            d.y,
+            filter:       'blur(0.5px)',
+            boxShadow:    '0 0 10px rgba(232,181,71,.85)',
+          }}
+          animate={{
+            opacity: [0, 0.9, 0],
+            scale:   [0.4, 1.2, 0.4],
+          }}
+          transition={{
+            duration: d.dur,
+            delay:    d.delay,
+            repeat:   Infinity,
+            ease:     'easeInOut',
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+/** Wavy steam plumes rising out of the cup. */
+function Steam({ active }: { active: boolean }) {
+  const plumes = [0, 1, 2, 3];
+  return (
+    <div
+      className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+      style={{ top: -6 }}
+    >
+      <AnimatePresence>
+        {active &&
+          plumes.map(i => (
+            <motion.span
+              key={i}
+              className="absolute block rounded-full bg-white/70"
+              style={{
+                width:  6 + i,
+                height: 6 + i,
+                left:   (i - 1.5) * 10,
+                filter: 'blur(6px)',
+              }}
+              initial={{ opacity: 0, y: 0,    scale: 0.6 }}
+              animate={{
+                opacity: [0, 0.55, 0],
+                y:       [-2, -64],
+                x:       [0, (i % 2 === 0 ? 1 : -1) * 14, 0],
+                scale:   [0.7, 1.1, 1.4],
+              }}
+              exit={{ opacity: 0 }}
+              transition={{
+                duration: 2.4,
+                delay:    i * 0.35,
+                repeat:   Infinity,
+                ease:     'easeOut',
+              }}
+            />
+          ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** A magical cup that fills with liquid as we progress. */
+function MagicCup({
+  fill,            // 0..1
+  drink,
+  active,
+  done,
+  failed,
+}: {
+  fill:   number;
+  drink:  'coffee' | 'tea';
+  active: boolean;
+  done:   boolean;
+  failed: boolean;
+}) {
+  const liquidColor =
+    drink === 'coffee'
+      ? 'from-[#5a2f12] via-[#7a3e16] to-[#a6571c]'
+      : 'from-[#9a4a16] via-[#c87326] to-[#e9a14a]';
+
+  return (
+    <div className="relative w-44 h-44 flex items-center justify-center">
+      {/* Pulsing aura */}
+      <motion.div
+        className={`absolute inset-0 rounded-full blur-2xl ${
+          failed ? 'bg-red-500/30' : 'bg-coffee-500/30'
+        }`}
+        animate={{ scale: [1, 1.15, 1], opacity: [0.55, 0.85, 0.55] }}
+        transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Rotating outer ring */}
+      <motion.div
+        className="absolute inset-2 rounded-full border border-coffee-400/30"
+        style={{
+          background:
+            'conic-gradient(from 0deg, rgba(232,181,71,0) 0%, rgba(232,181,71,.55) 45%, rgba(232,181,71,0) 60%)',
+        }}
+        animate={{ rotate: failed ? 0 : 360 }}
+        transition={{
+          duration: 6,
+          repeat:   Infinity,
+          ease:     'linear',
+        }}
+      />
+
+      {/* Inner glass disc */}
+      <div className="absolute inset-6 rounded-full bg-black/40 border border-white/10 backdrop-blur-sm" />
+
+      {/* Sparkle field around the cup */}
+      {!failed && <SparkleField />}
+
+      {/* The cup */}
+      <motion.div
+        className="relative z-10"
+        animate={
+          failed
+            ? { x: [0, -6, 6, -4, 4, 0] }
+            : active
+              ? { y: [0, -3, 0], rotate: [-1.2, 1.2, -1.2] }
+              : { y: 0, rotate: 0 }
+        }
+        transition={
+          failed
+            ? { duration: 0.45 }
+            : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
+        }
+      >
+        {/* Cup body */}
+        <div className="relative w-20 h-20 rounded-b-[2.2rem] rounded-t-md bg-white/95 shadow-[0_10px_30px_-10px_rgba(0,0,0,.7)] overflow-hidden border border-white/40">
+          {/* Liquid */}
+          <motion.div
+            className={`absolute inset-x-0 bottom-0 bg-gradient-to-b ${liquidColor}`}
+            initial={{ height: 0 }}
+            animate={{ height: `${Math.round(fill * 100)}%` }}
+            transition={{ duration: 1.1, ease: [0.22, 0.68, 0, 1.05] }}
+          >
+            {/* Surface shimmer */}
+            <motion.div
+              className="absolute inset-x-0 top-0 h-2 bg-white/35"
+              animate={{ opacity: [0.2, 0.55, 0.2] }}
+              transition={{ duration: 1.6, repeat: Infinity }}
+            />
+            {/* Tiny rising bubbles */}
+            {active && !failed &&
+              [0, 1, 2, 3].map(i => (
+                <motion.span
+                  key={i}
+                  className="absolute rounded-full bg-white/70"
+                  style={{
+                    width:  3 + (i % 2),
+                    height: 3 + (i % 2),
+                    left:   `${20 + i * 18}%`,
+                    bottom: 4,
+                  }}
+                  animate={{ y: [0, -28], opacity: [0.9, 0] }}
+                  transition={{
+                    duration: 1.6 + i * 0.2,
+                    delay:    i * 0.3,
+                    repeat:   Infinity,
+                    ease:     'easeOut',
+                  }}
+                />
+              ))}
+          </motion.div>
+        </div>
+
+        {/* Cup handle */}
+        <span className="absolute right-[-14px] top-3 w-5 h-10 rounded-r-full border-4 border-white/95" />
+
+        {/* Saucer */}
+        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-28 h-3 rounded-full bg-white/15 blur-[2px]" />
+
+        {/* Steam */}
+        <Steam active={active && !failed} />
+      </motion.div>
+
+      {/* Done state — celebratory ring */}
+      <AnimatePresence>
+        {done && (
+          <motion.div
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1.4, opacity: 0 }}
+            transition={{ duration: 1.3, repeat: 2 }}
+            className="absolute inset-0 rounded-full border-2 border-emerald-400"
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Confetti burst when the drink is ready. */
+function Confetti() {
+  const bits = useMemo(
+    () =>
+      Array.from({ length: 22 }).map((_, i) => {
+        const a    = (i / 22) * Math.PI * 2;
+        const dist = 110 + ((i * 13) % 70);
+        return {
+          id:    i,
+          x:     Math.cos(a) * dist,
+          y:     Math.sin(a) * dist,
+          rot:   (i * 47) % 360,
+          color:
+            i % 3 === 0
+              ? '#E8B547'
+              : i % 3 === 1
+                ? '#F0D58C'
+                : '#34d399',
+          delay: (i % 6) * 0.04,
+        };
+      }),
+    [],
+  );
+
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      {bits.map(b => (
+        <motion.span
+          key={b.id}
+          className="absolute block w-1.5 h-2.5 rounded-sm"
+          style={{ background: b.color }}
+          initial={{ x: 0, y: 0, opacity: 0, rotate: 0 }}
+          animate={{
+            x:       b.x,
+            y:       b.y,
+            opacity: [0, 1, 0],
+            rotate:  b.rot,
+          }}
+          transition={{ duration: 1.4, delay: b.delay, ease: 'easeOut' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ────────────────────────────── Stepper ─────────────────────────── */
+
+function Stepper({ stage, failed }: { stage: number; failed: boolean }) {
+  return (
+    <div className="flex items-center justify-center gap-0.5 mb-8">
+      {STEPS.map((label, i) => {
+        const reached = stage > i;
+        const active  = stage === i + 1 && !failed;
+        const done    = reached && !failed;
+
+        return (
+          <div key={label} className="flex items-center">
+            <div className="flex flex-col items-center w-20">
+              <motion.div
+                className={`relative w-7 h-7 rounded-full flex items-center justify-center border ${
+                  done
+                    ? 'bg-emerald-500/15 border-emerald-400/60 text-emerald-300'
+                    : active
+                      ? 'bg-coffee-500/20 border-coffee-400/60 text-coffee-300'
+                      : failed
+                        ? 'bg-red-500/15 border-red-400/40 text-red-300'
+                        : 'bg-white/5 border-white/15 text-white/40'
+                }`}
+                animate={
+                  active
+                    ? { boxShadow: ['0 0 0px rgba(232,181,71,0)', '0 0 14px rgba(232,181,71,.65)', '0 0 0px rgba(232,181,71,0)'] }
+                    : {}
+                }
+                transition={{ duration: 1.6, repeat: Infinity }}
+              >
+                {done
+                  ? <Check size={14} strokeWidth={3} />
+                  : active
+                    ? <Coffee size={13} className="animate-pulse" />
+                    : <span className="text-[10px] font-semibold">{i + 1}</span>}
+              </motion.div>
+              <span
+                className={`mt-1.5 text-[10px] font-medium tracking-wider uppercase ${
+                  done || active ? 'text-white/70' : 'text-white/30'
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+
+            {i < STEPS.length - 1 && (
+              <div className="relative w-8 h-px bg-white/10 mx-1">
+                <motion.div
+                  className={`absolute inset-y-0 left-0 ${
+                    failed ? 'bg-red-400/60' : 'bg-coffee-400'
+                  }`}
+                  initial={{ width: '0%' }}
+                  animate={{ width: stage > i + 0.5 ? '100%' : '0%' }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ────────────────────────────── Screen ──────────────────────────── */
 
 export default function PaymentSuccess({
   drink,
@@ -24,10 +372,6 @@ export default function PaymentSuccess({
   amountPaise: number;
   orderId?:    string;
 }) {
-  // Poll the order's real status so the screen flips from
-  // "Brewing…" to "Completed" once the ESP acks the dispense.
-  // Without this poll the UI sat on "Brewing…" forever even after
-  // the machine had finished and acked.
   const [status, setStatus] = useState<LiveStatus>('paid');
 
   useEffect(() => {
@@ -40,7 +384,7 @@ export default function PaymentSuccess({
         if (!r.ok) return;
         const j = (await r.json()) as { status: LiveStatus };
         if (!cancelled && j.status) setStatus(j.status);
-      } catch { /* ignore — next tick will retry */ }
+      } catch {/* ignore */}
     };
 
     tick();
@@ -48,74 +392,112 @@ export default function PaymentSuccess({
     return () => { cancelled = true; clearInterval(id); };
   }, [orderId]);
 
+  const stage  = stepIndexOf(status);
   const done   = status === 'dispensed';
-  const failed = status === 'failed';
+  const failed = status === 'failed' || status === 'refunded';
+
+  /* Liquid fill: paid=0.55, dispensing=0.85, dispensed=1.0 */
+  const fill =
+    failed       ? 0.18 :
+    done         ? 1    :
+    stage === 2  ? 0.85 :
+    stage === 1  ? 0.55 :
+                   0.18;
 
   const headline =
-    done   ? 'Your drink is ready!' :
-    failed ? 'Something went wrong' :
-             'Payment successful!';
+    failed ? 'Something went wrong'   :
+    done   ? 'Your drink is ready!'   :
+             status === 'dispensing'
+               ? 'Pouring your drink…'
+               : 'Brewing in progress';
 
   const subline =
+    failed ? 'The machine could not complete this order. Please contact staff for a refund.' :
     done   ? `Please collect your ${drink === 'coffee' ? '☕ filter coffee' : '🍵 tea'} at the dispensing slot.` :
-    failed ? 'The machine could not complete this order. Please contact staff.' :
-             `Your ${drink === 'coffee' ? '☕ filter coffee' : '🍵 tea'} is being brewed.`;
-
-  const Icon      = failed ? XCircle : CheckCircle2;
-  const iconColor = failed ? 'text-red-400'    : 'text-emerald-400';
-  const iconBg    = failed ? 'bg-red-500/15 border-red-500/30'
-                           : 'bg-emerald-500/15 border-emerald-500/30';
-  const barColor  = failed ? 'bg-red-500' : 'bg-emerald-500';
-  const barWidth  = done || failed ? '100%' : '85%';
-  const stepLabel = done   ? 'Completed'
-                  : failed ? 'Failed'
-                  : 'Brewing…';
+             `A little Lyra magic is preparing your ${drink === 'coffee' ? 'filter coffee' : 'tea'}.`;
 
   return (
-    <div className="flex flex-col items-center text-center pt-10 pb-6">
+    <div className="relative flex flex-col items-center text-center pt-6 pb-8 overflow-hidden">
+      {/* Ambient gold aurora behind everything */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(60% 50% at 50% 30%, rgba(232,181,71,.18), transparent 60%), radial-gradient(40% 35% at 50% 80%, rgba(212,162,74,.12), transparent 70%)',
+        }}
+      />
+
+      {/* Banner pill */}
       <motion.div
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-        className={`w-20 h-20 rounded-full border flex items-center justify-center mb-6 ${iconBg}`}
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`mb-6 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold tracking-[0.22em] uppercase border ${
+          failed
+            ? 'bg-red-500/10 border-red-400/30 text-red-300'
+            : done
+              ? 'bg-emerald-500/10 border-emerald-400/30 text-emerald-300'
+              : 'bg-coffee-500/10 border-coffee-400/30 text-coffee-300'
+        }`}
       >
-        <Icon size={40} className={iconColor} />
+        {failed
+          ? 'Order failed'
+          : done
+            ? <>Ready <Sparkles size={11} /></>
+            : <>Lyra Magic <Sparkles size={11} className="animate-pulse" /></>}
       </motion.div>
 
+      {/* Cup stage */}
+      <div className="relative">
+        <MagicCup
+          fill={fill}
+          drink={drink}
+          active={!failed && !done}
+          done={done}
+          failed={failed}
+        />
+        <AnimatePresence>{done && <Confetti key={paymentId} />}</AnimatePresence>
+      </div>
+
+      {/* Failed icon overlay */}
+      {failed && (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="-mt-12 mb-4 w-12 h-12 rounded-full bg-red-500/20 border border-red-400/40 flex items-center justify-center"
+        >
+          <XCircle size={26} className="text-red-300" />
+        </motion.div>
+      )}
+
+      {/* Headline + subline */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        key={headline}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.15 }}
+        className="mt-4 max-w-sm"
       >
         <h2 className="text-2xl font-bold text-white mb-2">{headline}</h2>
-        <p className="text-white/40 text-sm mb-8">{subline}</p>
+        <p className="text-white/45 text-sm leading-relaxed">{subline}</p>
       </motion.div>
 
+      {/* Stepper */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.35 }}
-        className="w-full max-w-xs mb-8"
+        transition={{ delay: 0.3 }}
+        className="mt-7"
       >
-        <div className="flex items-center justify-between text-xs text-white/30 mb-2">
-          <span>Payment verified</span>
-          <span>{stepLabel}</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-          <motion.div
-            className={`h-full rounded-full ${barColor}`}
-            initial={{ width: '30%' }}
-            animate={{ width: barWidth }}
-            transition={{ duration: done || failed ? 0.6 : 10, ease: 'easeOut' }}
-          />
-        </div>
+        <Stepper stage={stage} failed={failed} />
       </motion.div>
 
+      {/* Receipt card */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="glass rounded-2xl p-4 w-full max-w-xs text-left"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+        className="glass rounded-2xl p-4 w-full max-w-xs text-left border border-white/10"
       >
         <div className="flex justify-between text-sm mb-2">
           <span className="text-white/40">Amount</span>
@@ -123,7 +505,7 @@ export default function PaymentSuccess({
         </div>
         <div className="flex justify-between text-xs">
           <span className="text-white/30">Payment ID</span>
-          <span className="text-white/50 font-mono">{paymentId.slice(-12)}</span>
+          <span className="text-white/55 font-mono">{paymentId.slice(-12)}</span>
         </div>
       </motion.div>
     </div>
