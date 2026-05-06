@@ -1,5 +1,15 @@
+import Link from 'next/link';
 import { Phone, Mail, MapPin, Facebook, Instagram, Linkedin } from 'lucide-react';
 import { BrandLogo } from './BrandWordmark';
+
+const LEGAL_LINKS = [
+  { href: '/about',            label: 'About Us'                   },
+  { href: '/contact',          label: 'Contact Us'                 },
+  { href: '/terms',            label: 'Terms & Conditions'         },
+  { href: '/privacy',          label: 'Privacy Policy'             },
+  { href: '/refund-policy',    label: 'Refund & Cancellation'      },
+  { href: '/shipping-policy',  label: 'Shipping & Service Delivery'},
+];
 
 const PHONE_DISPLAY = '+91-81223 78860';
 const PHONE_TEL     = 'tel:+918122378860';
@@ -21,7 +31,7 @@ const SOCIALS = [
 export function BrandFooter() {
   return (
     <footer className="border-t border-white/5 bg-black/40">
-      <div className="max-w-5xl mx-auto px-6 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+      <div className="max-w-6xl mx-auto px-6 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
         {/* Brand */}
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -92,10 +102,26 @@ export function BrandFooter() {
             <li><a href="https://lyraenterprise.co.in/contact" target="_blank" rel="noopener noreferrer" className="hover:text-coffee-400 transition-colors">Contact / Support</a></li>
           </ul>
         </div>
+
+        {/* Legal */}
+        <div>
+          <p className="text-white/80 font-medium text-xs uppercase tracking-widest mb-3">
+            Legal
+          </p>
+          <ul className="space-y-2 text-white/60">
+            {LEGAL_LINKS.map(({ href, label }) => (
+              <li key={href}>
+                <Link href={href} className="hover:text-coffee-400 transition-colors">
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       <div className="border-t border-white/5">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-white/30">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-white/30">
           <p>© {new Date().getFullYear()} Lyra Enterprises. All rights reserved.</p>
           <p>Made in Chennai, India.</p>
         </div>
@@ -149,6 +175,19 @@ export function BrandFooterCompact() {
         <p className="text-[10px] text-white/25 mt-5">
           © {new Date().getFullYear()} Lyra Enterprises · Made in Chennai, India.
         </p>
+
+        <nav className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-white/40">
+          {LEGAL_LINKS.map(({ href, label }, i) => (
+            <span key={href} className="flex items-center gap-x-3">
+              <Link href={href} className="hover:text-coffee-400 transition-colors">
+                {label}
+              </Link>
+              {i < LEGAL_LINKS.length - 1 && (
+                <span className="text-white/15">·</span>
+              )}
+            </span>
+          ))}
+        </nav>
       </div>
     </footer>
   );
