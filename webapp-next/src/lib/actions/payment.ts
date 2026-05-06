@@ -37,7 +37,7 @@ export async function initiateRazorpayPayment(opts: InitiatePaymentOptions): Pro
   }
 
   // 1. Create Razorpay order on the server
-  let orderData: { order_id: string; amount: number; key_id: string };
+  let orderData: { order_id: string; amount: number; key_id: string; internal_order_id: string };
   try {
     const res = await fetch('/api/payment/order', {
       method:  'POST',
@@ -92,7 +92,9 @@ export async function initiateRazorpayPayment(opts: InitiatePaymentOptions): Pro
             throw new Error(error);
           }
           const { payment_id } = await verifyRes.json();
-          opts.onSuccess(orderData.order_id, payment_id, orderData.amount);
+          // Pass the INTERNAL order UUID (not the Razorpay order id) so
+          // the success screen can poll /api/order/[id]/status correctly.
+          opts.onSuccess(orderData.internal_order_id, payment_id, orderData.amount);
           resolve();
         } catch (err) {
           toast.error('Payment verification failed. Contact support if charged.');
