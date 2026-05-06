@@ -186,21 +186,127 @@ function MagicCup({
             : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
         }
       >
+        {/* Pouring stream coming from above the cup */}
+        <AnimatePresence>
+          {active && !failed && fill < 1 && (
+            <motion.div
+              key="stream"
+              initial={{ opacity: 0, scaleY: 0.4 }}
+              animate={{ opacity: 1, scaleY: 1 }}
+              exit={{ opacity: 0, scaleY: 0.4 }}
+              transition={{ duration: 0.4 }}
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2 z-20"
+              style={{ bottom: '78%', transformOrigin: 'top center' }}
+            >
+              {/* Falling liquid stream */}
+              <div
+                className={`relative w-[6px] h-16 rounded-full overflow-hidden ${
+                  drink === 'coffee'
+                    ? 'bg-gradient-to-b from-[#3a1d0a] via-[#7a3e16] to-[#a6571c]'
+                    : 'bg-gradient-to-b from-[#7a3a0e] via-[#c87326] to-[#e9a14a]'
+                }`}
+                style={{
+                  filter: 'drop-shadow(0 0 6px rgba(166,87,28,.6))',
+                }}
+              >
+                {/* Flowing highlight that loops down to fake motion */}
+                <motion.div
+                  className="absolute inset-x-0 h-4 bg-gradient-to-b from-transparent via-white/45 to-transparent"
+                  initial={{ y: -16 }}
+                  animate={{ y: 64 }}
+                  transition={{
+                    duration: 0.55,
+                    repeat:   Infinity,
+                    ease:     'linear',
+                  }}
+                />
+              </div>
+              {/* Droplets that drip past the stream */}
+              {[0, 1, 2].map(i => (
+                <motion.span
+                  key={i}
+                  className={`absolute left-1/2 -translate-x-1/2 w-1.5 h-2 rounded-full ${
+                    drink === 'coffee' ? 'bg-[#7a3e16]' : 'bg-[#c87326]'
+                  }`}
+                  style={{ top: 0 }}
+                  initial={{ y: -8, opacity: 0 }}
+                  animate={{ y: 70, opacity: [0, 1, 1, 0] }}
+                  transition={{
+                    duration: 0.85,
+                    delay:    i * 0.28,
+                    repeat:   Infinity,
+                    ease:     'easeIn',
+                  }}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Cup body */}
         <div className="relative w-20 h-20 rounded-b-[2.2rem] rounded-t-md bg-white/95 shadow-[0_10px_30px_-10px_rgba(0,0,0,.7)] overflow-hidden border border-white/40">
           {/* Liquid */}
           <motion.div
             className={`absolute inset-x-0 bottom-0 bg-gradient-to-b ${liquidColor}`}
-            initial={{ height: 0 }}
+            initial={{ height: '0%' }}
             animate={{ height: `${Math.round(fill * 100)}%` }}
-            transition={{ duration: 1.1, ease: [0.22, 0.68, 0, 1.05] }}
+            transition={{
+              // Slow, continuous rise so it feels like real pouring.
+              // ~22s to creep all the way to 100% if `fill` jumps.
+              duration: failed ? 0.4 : done ? 1.2 : 22,
+              ease:     done ? 'easeOut' : 'linear',
+            }}
           >
+            {/* Wavy liquid surface */}
+            <svg
+              className="absolute inset-x-0 -top-2 h-3 w-full"
+              viewBox="0 0 80 12"
+              preserveAspectRatio="none"
+              aria-hidden
+            >
+              <motion.path
+                fill="currentColor"
+                className={drink === 'coffee' ? 'text-[#a6571c]' : 'text-[#e9a14a]'}
+                animate={{
+                  d: [
+                    'M0 8 Q 20 2 40 8 T 80 8 V12 H0 Z',
+                    'M0 8 Q 20 12 40 6 T 80 8 V12 H0 Z',
+                    'M0 8 Q 20 4 40 10 T 80 6 V12 H0 Z',
+                    'M0 8 Q 20 2 40 8 T 80 8 V12 H0 Z',
+                  ],
+                }}
+                transition={{
+                  duration: 2.4,
+                  repeat:   Infinity,
+                  ease:     'easeInOut',
+                }}
+              />
+            </svg>
+
             {/* Surface shimmer */}
             <motion.div
               className="absolute inset-x-0 top-0 h-2 bg-white/35"
               animate={{ opacity: [0.2, 0.55, 0.2] }}
               transition={{ duration: 1.6, repeat: Infinity }}
             />
+
+            {/* Splash ripples where stream hits the surface */}
+            {active && !failed && fill < 1 &&
+              [0, 1].map(i => (
+                <motion.span
+                  key={i}
+                  className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/60"
+                  initial={{ width: 4, height: 4, opacity: 0.8 }}
+                  animate={{ width: 24, height: 8, opacity: 0 }}
+                  transition={{
+                    duration: 0.9,
+                    delay:    i * 0.45,
+                    repeat:   Infinity,
+                    ease:     'easeOut',
+                  }}
+                />
+              ))}
+
             {/* Tiny rising bubbles */}
             {active && !failed &&
               [0, 1, 2, 3].map(i => (
@@ -396,12 +502,14 @@ export default function PaymentSuccess({
   const done   = status === 'dispensed';
   const failed = status === 'failed' || status === 'refunded';
 
-  /* Liquid fill: paid=0.55, dispensing=0.85, dispensed=1.0 */
+  /* Liquid fill — slow, continuous pour. We deliberately target a
+   * high level even at `paid`, with a long linear transition, so the
+   * level visibly creeps up the entire time the user is waiting. */
   const fill =
     failed       ? 0.18 :
     done         ? 1    :
-    stage === 2  ? 0.85 :
-    stage === 1  ? 0.55 :
+    stage === 2  ? 0.95 :   // dispensing — almost full
+    stage === 1  ? 0.85 :   // paid / brewing — fill toward the rim
                    0.18;
 
   const headline =
