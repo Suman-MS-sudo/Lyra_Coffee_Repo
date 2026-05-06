@@ -80,35 +80,36 @@ function SparkleField() {
 
 /** Wavy steam plumes rising out of the cup. */
 function Steam({ active }: { active: boolean }) {
-  const plumes = [0, 1, 2, 3];
+  const plumes = [0, 1, 2, 3, 4, 5];
   return (
     <div
       className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-      style={{ top: -6 }}
+      style={{ top: -16 }}
     >
       <AnimatePresence>
         {active &&
           plumes.map(i => (
             <motion.span
               key={i}
-              className="absolute block rounded-full bg-white/70"
+              className="absolute block rounded-full bg-white/90"
               style={{
-                width:  6 + i,
-                height: 6 + i,
-                left:   (i - 1.5) * 10,
-                filter: 'blur(6px)',
+                width:  12 + i * 2,
+                height: 32 + i * 6,
+                left:   (i - 2.5) * 16,
+                filter: 'blur(12px)',
+                opacity: 0.85 - i * 0.09,
               }}
-              initial={{ opacity: 0, y: 0,    scale: 0.6 }}
+              initial={{ opacity: 0, y: 0,    scale: 0.7 }}
               animate={{
-                opacity: [0, 0.55, 0],
-                y:       [-2, -64],
-                x:       [0, (i % 2 === 0 ? 1 : -1) * 14, 0],
-                scale:   [0.7, 1.1, 1.4],
+                opacity: [0, 0.7 - i * 0.08, 0],
+                y:       [-4, -96 - i * 8],
+                x:       [0, (i % 2 === 0 ? 1 : -1) * (18 + i * 2), 0],
+                scale:   [0.8, 1.2 + i * 0.05, 1.5 + i * 0.08],
               }}
               exit={{ opacity: 0 }}
               transition={{
-                duration: 2.4,
-                delay:    i * 0.35,
+                duration: 2.8 + i * 0.2,
+                delay:    i * 0.22,
                 repeat:   Infinity,
                 ease:     'easeOut',
               }}
@@ -176,73 +177,21 @@ function MagicCup({
         animate={
           failed
             ? { x: [0, -6, 6, -4, 4, 0] }
-            : active
-              ? { y: [0, -3, 0], rotate: [-1.2, 1.2, -1.2] }
-              : { y: 0, rotate: 0 }
+            : done
+              ? { rotateY: [0, 180, 0], scale: [1, 1.08, 1], filter: 'none' }
+              : active
+                ? { y: [0, -3, 0], rotate: [-1.2, 1.2, -1.2] }
+                : { y: 0, rotate: 0 }
         }
         transition={
           failed
             ? { duration: 0.45 }
-            : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
+            : done
+              ? { duration: 1.2, ease: 'easeInOut' }
+              : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
         }
+        style={done ? { perspective: 600 } : {}}
       >
-        {/* Pouring stream coming from above the cup */}
-        <AnimatePresence>
-          {active && !failed && fill < 1 && (
-            <motion.div
-              key="stream"
-              initial={{ opacity: 0, scaleY: 0.4 }}
-              animate={{ opacity: 1, scaleY: 1 }}
-              exit={{ opacity: 0, scaleY: 0.4 }}
-              transition={{ duration: 0.4 }}
-              className="pointer-events-none absolute left-1/2 -translate-x-1/2 z-20"
-              style={{ bottom: '78%', transformOrigin: 'top center' }}
-            >
-              {/* Falling liquid stream */}
-              <div
-                className={`relative w-[6px] h-16 rounded-full overflow-hidden ${
-                  drink === 'coffee'
-                    ? 'bg-gradient-to-b from-[#3a1d0a] via-[#7a3e16] to-[#a6571c]'
-                    : 'bg-gradient-to-b from-[#7a3a0e] via-[#c87326] to-[#e9a14a]'
-                }`}
-                style={{
-                  filter: 'drop-shadow(0 0 6px rgba(166,87,28,.6))',
-                }}
-              >
-                {/* Flowing highlight that loops down to fake motion */}
-                <motion.div
-                  className="absolute inset-x-0 h-4 bg-gradient-to-b from-transparent via-white/45 to-transparent"
-                  initial={{ y: -16 }}
-                  animate={{ y: 64 }}
-                  transition={{
-                    duration: 0.55,
-                    repeat:   Infinity,
-                    ease:     'linear',
-                  }}
-                />
-              </div>
-              {/* Droplets that drip past the stream */}
-              {[0, 1, 2].map(i => (
-                <motion.span
-                  key={i}
-                  className={`absolute left-1/2 -translate-x-1/2 w-1.5 h-2 rounded-full ${
-                    drink === 'coffee' ? 'bg-[#7a3e16]' : 'bg-[#c87326]'
-                  }`}
-                  style={{ top: 0 }}
-                  initial={{ y: -8, opacity: 0 }}
-                  animate={{ y: 70, opacity: [0, 1, 1, 0] }}
-                  transition={{
-                    duration: 0.85,
-                    delay:    i * 0.28,
-                    repeat:   Infinity,
-                    ease:     'easeIn',
-                  }}
-                />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Cup body */}
         <div className="relative w-20 h-20 rounded-b-[2.2rem] rounded-t-md bg-white/95 shadow-[0_10px_30px_-10px_rgba(0,0,0,.7)] overflow-hidden border border-white/40">
           {/* Liquid */}
@@ -285,44 +234,49 @@ function MagicCup({
 
             {/* Surface shimmer */}
             <motion.div
-              className="absolute inset-x-0 top-0 h-2 bg-white/35"
-              animate={{ opacity: [0.2, 0.55, 0.2] }}
-              transition={{ duration: 1.6, repeat: Infinity }}
+              className="absolute inset-x-0 top-0 h-2 bg-white/40 blur-[1.5px]"
+              animate={{ opacity: [0.32, 0.75, 0.32] }}
+              transition={{ duration: 1.2, repeat: Infinity }}
             />
 
-            {/* Splash ripples where stream hits the surface */}
-            {active && !failed && fill < 1 &&
-              [0, 1].map(i => (
-                <motion.span
-                  key={i}
-                  className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/60"
-                  initial={{ width: 4, height: 4, opacity: 0.8 }}
-                  animate={{ width: 24, height: 8, opacity: 0 }}
-                  transition={{
-                    duration: 0.9,
-                    delay:    i * 0.45,
-                    repeat:   Infinity,
-                    ease:     'easeOut',
-                  }}
-                />
-              ))}
+            {/* Magical sparkles inside the mug */}
+            {(active || done) && !failed && Array.from({ length: 7 }).map((_, i) => (
+              <motion.span
+                key={i}
+                className="absolute rounded-full bg-amber-200/80 shadow-lg"
+                style={{
+                  width:  2 + (i % 2),
+                  height: 2 + (i % 2),
+                  left:   `${18 + i * 10}%`,
+                  bottom: 8 + (i % 3) * 8,
+                  filter: 'blur(0.5px)',
+                }}
+                animate={{ y: [0, -12 - i * 2, 0], opacity: [0.7, 1, 0.7], scale: [1, 1.3, 1] }}
+                transition={{
+                  duration: 1.8 + i * 0.18,
+                  delay:    i * 0.22,
+                  repeat:   Infinity,
+                  ease:     'easeInOut',
+                }}
+              />
+            ))}
 
-            {/* Tiny rising bubbles */}
-            {active && !failed &&
-              [0, 1, 2, 3].map(i => (
+            {/* More bubbles rising */}
+            {(active || done) && !failed &&
+              Array.from({ length: 7 }).map((_, i) => (
                 <motion.span
                   key={i}
-                  className="absolute rounded-full bg-white/70"
+                  className="absolute rounded-full bg-white/80"
                   style={{
-                    width:  3 + (i % 2),
-                    height: 3 + (i % 2),
-                    left:   `${20 + i * 18}%`,
+                    width:  2 + (i % 2),
+                    height: 2 + (i % 2),
+                    left:   `${12 + i * 12}%`,
                     bottom: 4,
                   }}
-                  animate={{ y: [0, -28], opacity: [0.9, 0] }}
+                  animate={{ y: [0, -32 - i * 2], opacity: [0.85, 0] }}
                   transition={{
-                    duration: 1.6 + i * 0.2,
-                    delay:    i * 0.3,
+                    duration: 1.2 + i * 0.18,
+                    delay:    i * 0.18,
                     repeat:   Infinity,
                     ease:     'easeOut',
                   }}
@@ -341,17 +295,8 @@ function MagicCup({
         <Steam active={active && !failed} />
       </motion.div>
 
-      {/* Done state — celebratory ring */}
-      <AnimatePresence>
-        {done && (
-          <motion.div
-            initial={{ scale: 0.4, opacity: 0 }}
-            animate={{ scale: 1.4, opacity: 0 }}
-            transition={{ duration: 1.3, repeat: 2 }}
-            className="absolute inset-0 rounded-full border-2 border-emerald-400"
-          />
-        )}
-      </AnimatePresence>
+      {/* Done state — celebratory ring (removed green ring under cup) */}
+      {/* No celebratory ring under the cup after completion */}
     </div>
   );
 }
