@@ -545,22 +545,7 @@ export default function PaymentSuccess({
         <Stepper stage={stage} failed={failed} />
       </motion.div>
 
-      {/* Receipt card */}
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.45 }}
-        className="glass rounded-2xl p-4 w-full max-w-xs text-left border border-white/10"
-      >
-        <div className="flex justify-between text-sm mb-2">
-          <span className="text-white/40">Amount</span>
-          <span className="text-white font-semibold">{formatPrice(amountPaise)}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-white/30">Payment ID</span>
-          <span className="text-white/55 font-mono">{paymentId.slice(-12)}</span>
-        </div>
-      </motion.div>
+      {/* Receipt card removed: Amount and Payment ID are no longer shown */}
     </div>
   );
 }
