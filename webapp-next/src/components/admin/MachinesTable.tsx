@@ -199,37 +199,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
     });
   };
 
-  // A machine is "online" if its last poll/heartbeat is within 90s.
-  // The threshold is generous: ESP polls every 3s but TLS handshakes
-  // and Wi-Fi reconnects can occasionally stall a few cycles.
-  const ONLINE_THRESHOLD_MS = 90_000;
-  const [now, setNow] = useState<number>(() => Date.now());
-  useEffect(() => {
-    // Tick every 10s so the chip flips between online/offline live
-    // without the page needing a full refresh.
-    const id = setInterval(() => setNow(Date.now()), 10_000);
-    return () => clearInterval(id);
-  }, []);
-  // Pull fresh server data every 30s so last_seen_at stays current.
-  useEffect(() => {
-    const id = setInterval(() => router.refresh(), 30_000);
-    return () => clearInterval(id);
-  }, [router]);
-
-  const isOnline = (m: CoffeeMachine) => {
-    if (!m.last_seen_at) return false;
-    return now - new Date(m.last_seen_at).getTime() < ONLINE_THRESHOLD_MS;
-  };
-
-  const lastSeenLabel = (m: CoffeeMachine) => {
-    if (!m.last_seen_at) return 'never';
-    const diff = Math.max(0, now - new Date(m.last_seen_at).getTime());
-    const s = Math.floor(diff / 1000);
-    if (s < 60)        return `${s}s ago`;
-    if (s < 3600)      return `${Math.floor(s / 60)}m ago`;
-    if (s < 86_400)    return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86_400)}d ago`;
-  };
+  const isOnline = (m: CoffeeMachine) => false; // requires last_ping — add when schema updated
 
   return (
     <div className="space-y-4">
@@ -454,21 +424,11 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
                         {isOnline(m) ? (
-                          <Wifi size={14} className="text-green-400 shrink-0" aria-label="online" />
+                          <Wifi size={14} className="text-green-400 shrink-0" />
                         ) : (
-                          <WifiOff size={14} className="text-white/20 shrink-0" aria-label="offline" />
+                          <WifiOff size={14} className="text-white/20 shrink-0" />
                         )}
                         <span className="font-medium text-white">{m.name}</span>
-                        <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full border tabular-nums ${
-                            isOnline(m)
-                              ? 'bg-green-500/15 text-green-400 border-green-500/20'
-                              : 'bg-white/5 text-white/40 border-white/10'
-                          }`}
-                          title={`Last seen ${lastSeenLabel(m)}`}
-                        >
-                          {isOnline(m) ? 'online' : lastSeenLabel(m)}
-                        </span>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-white/50">
