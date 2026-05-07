@@ -36,13 +36,14 @@ export default async function CustomerMachinesPage() {
 
   const { data: machines } = await supabaseAdmin
     .from('coffee_machines')
-    .select('id, name, location, status, is_free, price_coffee_paise, price_tea_paise, created_at, updated_at')
+    .select('id, name, location, status, is_free, price_coffee_paise, price_tea_paise, price_milk_paise, created_at, updated_at')
     .eq('customer_id', customerId)
     .order('created_at', { ascending: false });
 
   const machineList = (machines ?? []) as CoffeeMachine[];
   const defaultCoffee = getDrinkPrice('coffee');
   const defaultTea    = getDrinkPrice('tea');
+  const defaultMilk   = getDrinkPrice('milk');
 
   return (
     <div>
@@ -95,8 +96,10 @@ export default async function CustomerMachinesPage() {
                         isFree={machine.is_free}
                         priceCoffeePaise={machine.price_coffee_paise}
                         priceTeaPaise={machine.price_tea_paise}
+                        priceMilkPaise={machine.price_milk_paise}
                         defaultCoffee={defaultCoffee}
                         defaultTea={defaultTea}
+                        defaultMilk={defaultMilk}
                       />
                     </td>
                     <td className="px-5 py-3.5 text-white/40">

@@ -149,14 +149,14 @@ export function getDrinkPrice(drink: string): number {
 /** Resolve effective price for a machine + drink. Customer overrides win;
  *  null override falls back to platform default. */
 export function getMachineDrinkPrice(
-  machine: { is_free: boolean | null; price_coffee_paise: number | null; price_tea_paise: number | null },
+  machine: { is_free: boolean | null; price_coffee_paise: number | null; price_tea_paise: number | null; price_milk_paise?: number | null },
   drink: 'coffee' | 'tea' | 'milk',
 ): number {
   if (machine.is_free) return 0;
   let override: number | null | undefined = null;
-  if (drink === 'coffee') override = machine.price_coffee_paise;
-  else if (drink === 'tea') override = machine.price_tea_paise;
-  // For milk, no per-machine override yet; fallback to default
+  if      (drink === 'coffee') override = machine.price_coffee_paise;
+  else if (drink === 'tea')    override = machine.price_tea_paise;
+  else if (drink === 'milk')   override = machine.price_milk_paise;
   if (typeof override === 'number' && override >= 0) return override;
   return getDrinkPrice(drink);
 }

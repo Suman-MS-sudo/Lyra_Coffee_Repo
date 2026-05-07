@@ -163,6 +163,8 @@ ALTER TABLE coffee_machines
         CHECK (price_coffee_paise IS NULL OR price_coffee_paise >= 0),
     ADD COLUMN IF NOT EXISTS price_tea_paise    INTEGER
         CHECK (price_tea_paise    IS NULL OR price_tea_paise    >= 0),
+    ADD COLUMN IF NOT EXISTS price_milk_paise   INTEGER
+        CHECK (price_milk_paise   IS NULL OR price_milk_paise   >= 0),
     ADD COLUMN IF NOT EXISTS is_free            BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Hardware identifier — usually the ESP32 MAC address.

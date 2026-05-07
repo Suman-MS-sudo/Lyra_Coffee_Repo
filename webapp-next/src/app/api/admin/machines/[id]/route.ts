@@ -13,6 +13,7 @@ const patchSchema = z.object({
   is_free:     z.boolean().optional(),
   price_coffee_paise: z.number().int().min(0).max(100_000).nullable().optional(),
   price_tea_paise:    z.number().int().min(0).max(100_000).nullable().optional(),
+  price_milk_paise:   z.number().int().min(0).max(100_000).nullable().optional(),
   mac_id:      z.string().trim().max(64).regex(/^[A-Za-z0-9:_\-]+$/).nullable().optional(),
   // null clears the timestamp so the next ESP32 to call /identify
   // with this MAC can re-provision (e.g. after a board swap).
@@ -49,7 +50,7 @@ export async function PATCH(
     .update(updates)
     .eq('id', parsed.data)
     .select(
-      'id, name, location, status, customer_id, is_free, price_coffee_paise, price_tea_paise, mac_id, mac_provisioned_at, updated_at',
+      'id, name, location, status, customer_id, is_free, price_coffee_paise, price_tea_paise, price_milk_paise, mac_id, mac_provisioned_at, updated_at',
     )
     .single();
 

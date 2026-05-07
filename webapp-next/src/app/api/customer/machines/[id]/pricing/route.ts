@@ -11,14 +11,9 @@ const MAX_PAISE = 100_000;
 
 const pricingSchema = z.object({
   is_free: z.boolean(),
-  price_coffee_paise: z.union([
-    z.number().int().min(0).max(MAX_PAISE),
-    z.null(),
-  ]),
-  price_tea_paise: z.union([
-    z.number().int().min(0).max(MAX_PAISE),
-    z.null(),
-  ]),
+  price_coffee_paise: z.union([z.number().int().min(0).max(MAX_PAISE), z.null()]),
+  price_tea_paise:    z.union([z.number().int().min(0).max(MAX_PAISE), z.null()]),
+  price_milk_paise:   z.union([z.number().int().min(0).max(MAX_PAISE), z.null()]),
 });
 
 async function authedCustomerId(): Promise<string | null> {
@@ -69,9 +64,10 @@ export async function PATCH(
       is_free:            parsed.data.is_free,
       price_coffee_paise: parsed.data.price_coffee_paise,
       price_tea_paise:    parsed.data.price_tea_paise,
+      price_milk_paise:   parsed.data.price_milk_paise,
     })
     .eq('id', machineId)
-    .select('id, is_free, price_coffee_paise, price_tea_paise, updated_at')
+    .select('id, is_free, price_coffee_paise, price_tea_paise, price_milk_paise, updated_at')
     .single();
 
   if (error) {

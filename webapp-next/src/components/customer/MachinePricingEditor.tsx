@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Coffee, Leaf, Loader2, Pencil, Save, X, Gift } from 'lucide-react';
+import { Coffee, Leaf, Milk, Loader2, Pencil, Save, X, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -9,8 +9,10 @@ interface Props {
   isFree:           boolean;
   priceCoffeePaise: number | null;
   priceTeaPaise:    number | null;
-  defaultCoffee:    number; // platform fallback in paise
+  priceMilkPaise:   number | null;
+  defaultCoffee:    number;
   defaultTea:       number;
+  defaultMilk:      number;
 }
 
 function paiseToRupees(p: number | null, fallback: number): string {
@@ -22,37 +24,43 @@ export default function MachinePricingEditor({
   isFree,
   priceCoffeePaise,
   priceTeaPaise,
+  priceMilkPaise,
   defaultCoffee,
   defaultTea,
+  defaultMilk,
 }: Props) {
   const [open, setOpen]     = useState(false);
   const [free, setFree]     = useState(isFree);
   const [coffee, setCoffee] = useState<string>(paiseToRupees(priceCoffeePaise, defaultCoffee));
   const [tea, setTea]       = useState<string>(paiseToRupees(priceTeaPaise,    defaultTea));
+  const [milk, setMilk]     = useState<string>(paiseToRupees(priceMilkPaise,   defaultMilk));
   const [pending, startTx]  = useTransition();
   const [saving, setSaving] = useState(false);
 
-  // Live (already-saved) state shown in the row when collapsed
   const [savedFree,   setSavedFree]   = useState(isFree);
   const [savedCoffee, setSavedCoffee] = useState(priceCoffeePaise);
   const [savedTea,    setSavedTea]    = useState(priceTeaPaise);
+  const [savedMilk,   setSavedMilk]   = useState(priceMilkPaise);
 
   function reset() {
     setFree(savedFree);
     setCoffee(paiseToRupees(savedCoffee, defaultCoffee));
     setTea(paiseToRupees(savedTea,       defaultTea));
+    setMilk(paiseToRupees(savedMilk,     defaultMilk));
   }
 
   async function save() {
     const coffeePaise = Math.round(parseFloat(coffee) * 100);
     const teaPaise    = Math.round(parseFloat(tea)    * 100);
+    const milkPaise   = Math.round(parseFloat(milk)   * 100);
     if (Number.isNaN(coffeePaise) || coffeePaise < 0 || coffeePaise > 100_000) {
-      toast.error('Coffee price must be between ₹0 and ₹1000');
-      return;
+      toast.error('Coffee price must be between ₹0 and ₹1000'); return;
     }
     if (Number.isNaN(teaPaise) || teaPaise < 0 || teaPaise > 100_000) {
-      toast.error('Tea price must be between ₹0 and ₹1000');
-      return;
+      toast.error('Tea price must be between ₹0 and ₹1000'); return;
+    }
+    if (Number.isNaN(milkPaise) || milkPaise < 0 || milkPaise > 100_000) {
+      toast.error('Milk price must be between ₹0 and ₹1000'); return;
     }
     setSaving(true);
     try {
@@ -63,6 +71,7 @@ export default function MachinePricingEditor({
           is_free:            free,
           price_coffee_paise: coffeePaise,
           price_tea_paise:    teaPaise,
+          price_milk_paise:   milkPaise,
         }),
       });
       if (!res.ok) {
@@ -73,6 +82,7 @@ export default function MachinePricingEditor({
       setSavedFree(data.is_free);
       setSavedCoffee(data.price_coffee_paise);
       setSavedTea(data.price_tea_paise);
+      setSavedMilk(data.price_milk_paise);
       startTx(() => setOpen(false));
       toast.success(free ? 'Machine set to free' : 'Pricing updated');
     } catch (err) {
@@ -92,7 +102,7 @@ export default function MachinePricingEditor({
           </span>
         ) : (
           <span className="text-white/60 text-xs whitespace-nowrap">
-            ☕ ₹{paiseToRupees(savedCoffee, defaultCoffee)} · 🍵 ₹{paiseToRupees(savedTea, defaultTea)}
+            ☕ ₹{paiseToRupees(savedCoffee, defaultCoffee)} · 🍵 ₹{paiseToRupees(savedTea, defaultTea)} · 🥛 ₹{paiseToRupees(savedMilk, defaultMilk)}
           </span>
         )}
         <button
@@ -132,18 +142,9 @@ export default function MachinePricingEditor({
       {/* Price inputs */}
       <fieldset disabled={free} className={free ? 'opacity-40 pointer-events-none' : ''}>
         <div className="space-y-2">
-          <PriceInput
-            icon={<Coffee size={13} className="text-coffee-400" />}
-            label="Coffee"
-            value={coffee}
-            onChange={setCoffee}
-          />
-          <PriceInput
-            icon={<Leaf size={13} className="text-green-400" />}
-            label="Tea"
-            value={tea}
-            onChange={setTea}
-          />
+          <PriceInput icon={<Coffee size={13} className="text-coffee-400" />} label="Coffee" value={coffee} onChange={setCoffee} />
+          <PriceInput icon={<Leaf   size={13} className="text-green-400"  />} label="Tea"    value={tea}    onChange={setTea}    />
+          <PriceInput icon={<Milk   size={13} className="text-blue-300"   />} label="Milk"   value={milk}   onChange={setMilk}   />
         </div>
       </fieldset>
 
