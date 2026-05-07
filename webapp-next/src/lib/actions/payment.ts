@@ -10,9 +10,11 @@ declare global {
   }
 }
 
+import type { DrinkType } from '@/lib/types/database';
+
 interface InitiatePaymentOptions {
   machine_id:    string;
-  drink_type:    'coffee' | 'tea';
+  drink_type:    DrinkType;
   customization: DrinkCustomization;
   onSuccess:     (orderId: string, paymentId: string, amount: number) => void;
 }
@@ -65,7 +67,10 @@ export async function initiateRazorpayPayment(opts: InitiatePaymentOptions): Pro
       amount:      orderData.amount,
       currency:    'INR',
       name:        'Lyra Enterprises',
-      description: `${opts.drink_type === 'coffee' ? 'Filter Coffee' : 'Tea'} — 100ml`,
+      description:
+        opts.drink_type === 'coffee' ? 'Filter Coffee — 100ml'
+        : opts.drink_type === 'tea' ? 'Tea — 100ml'
+        : 'Hot Milk — 100ml',
       order_id:    orderData.order_id,
       prefill:     { method: 'upi' },
       theme:       { color: '#D4A24A' },

@@ -9,6 +9,8 @@ export type PaymentStatus = 'captured' | 'refunded' | 'failed';
 export type PaymentMethod = 'upi' | 'card' | 'netbanking' | 'wallet' | string;
 export type DispenseStatus = 'queued' | 'sent' | 'ack' | 'failed';
 
+export type DrinkType = 'coffee' | 'tea' | 'milk';
+
 export interface DrinkCustomization {
   sugar:    'none' | 'low' | 'medium' | 'high';
   strength: 'light' | 'medium' | 'strong';  // decoction:milk ratio (20:80, 30:70, 40:60)
@@ -37,7 +39,7 @@ export interface CoffeeMachine {
 export interface CoffeeOrder {
   id:                string;
   machine_id:        string;
-  drink_type:        'coffee' | 'tea';
+  drink_type:        DrinkType;
   customization:     DrinkCustomization;
   amount_paise:      number;
   status:            OrderStatus;

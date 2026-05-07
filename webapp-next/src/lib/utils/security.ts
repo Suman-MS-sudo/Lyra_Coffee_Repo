@@ -135,6 +135,7 @@ export function apiError(message: string, status: number) {
 const DEFAULT_PRICES_PAISE: Record<string, number> = {
   coffee: 2500,
   tea:    2000,
+  milk:   1500,
 };
 
 /** Platform-default price for a drink (in paise). */
@@ -146,10 +147,13 @@ export function getDrinkPrice(drink: string): number {
  *  null override falls back to platform default. */
 export function getMachineDrinkPrice(
   machine: { is_free: boolean | null; price_coffee_paise: number | null; price_tea_paise: number | null },
-  drink: 'coffee' | 'tea',
+  drink: 'coffee' | 'tea' | 'milk',
 ): number {
   if (machine.is_free) return 0;
-  const override = drink === 'coffee' ? machine.price_coffee_paise : machine.price_tea_paise;
+  let override: number | null | undefined = null;
+  if (drink === 'coffee') override = machine.price_coffee_paise;
+  else if (drink === 'tea') override = machine.price_tea_paise;
+  // For milk, no per-machine override yet; fallback to default
   if (typeof override === 'number' && override >= 0) return override;
   return getDrinkPrice(drink);
 }

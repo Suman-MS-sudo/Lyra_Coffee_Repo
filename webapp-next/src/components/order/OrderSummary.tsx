@@ -5,9 +5,11 @@ import type { DrinkCustomization } from '@/lib/types/database';
 import { formatPrice, cap } from '@/lib/utils/cn';
 import { getMachineDrinkPrice } from '@/lib/utils/security';
 
+import type { DrinkType } from '@/lib/types/database';
+
 interface Props {
   machineId:        string;
-  drink:            'coffee' | 'tea';
+  drink:            DrinkType;
   customization:    DrinkCustomization;
   isFree:           boolean;
   priceCoffeePaise: number | null;
@@ -48,7 +50,7 @@ export default function OrderSummary({ drink, customization, isFree, priceCoffee
       <div className="glass rounded-3xl p-5 mb-6">
         <Row
           label="Drink"
-          value={drink === 'coffee' ? '☕ Filter Coffee' : '🍵 Tea'}
+          value={drink === 'coffee' ? '☕ Filter Coffee' : drink === 'tea' ? '🍵 Tea' : '🥛 Hot Milk'}
         />
         <Row label="Size"     value="Regular · 100ml" />
         <Row label="Strength" value={cap(customization.strength)} />
