@@ -224,6 +224,11 @@ export default function OrderFlow({
     navigate('summary');
   }
 
+  function handleOrderMore() {
+    setOrder({ customization: DEFAULT_CUSTOMIZATION });
+    navigate('drink');
+  }
+
   async function handlePayment() {
     if (!order.drink || !order.customization) return;
     setLoading(true);
@@ -358,8 +363,8 @@ export default function OrderFlow({
               <PaymentSuccess
                 drink={order.drink ?? 'coffee'}
                 paymentId={order.paymentId}
-                amountPaise={order.amountPaise ?? 0}
                 orderId={order.orderId}
+                onOrderMore={handleOrderMore}
               />
             )}
           </motion.div>

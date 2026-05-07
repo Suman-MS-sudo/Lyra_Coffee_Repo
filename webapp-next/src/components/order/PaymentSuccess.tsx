@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Coffee, Sparkles, XCircle } from 'lucide-react';
-import { formatPrice } from '@/lib/utils/cn';
+import { CupChar, ObstacleSvg } from './MachineOfflineOverlay';
 
 import type { DrinkType } from '@/lib/types/database';
 
@@ -186,16 +186,11 @@ function MagicCup({
             ? { x: [0, -6, 6, -4, 4, 0] }
             : done
               ? {
-                  rotateY: [0, 720, 1260, 1620, 1800, 1830, 1800],
-                  scale:   [1, 1.08, 1.14, 1.10, 1.05, 1.08, 1.05],
+                  scale:  [1, 1.06, 1.03],
                   filter: [
                     'drop-shadow(0 0 0px rgba(232,181,71,0))',
-                    'drop-shadow(0 0 40px rgba(232,181,71,1)) brightness(1.5)',
-                    'drop-shadow(0 0 28px rgba(232,181,71,0.8)) brightness(1.3)',
-                    'drop-shadow(0 0 16px rgba(232,181,71,0.5)) brightness(1.15)',
-                    'drop-shadow(0 0 10px rgba(232,181,71,0.3)) brightness(1.08)',
-                    'drop-shadow(0 0 14px rgba(232,181,71,0.4)) brightness(1.12)',
-                    'drop-shadow(0 0 10px rgba(232,181,71,0.3)) brightness(1.08)',
+                    'drop-shadow(0 0 28px rgba(232,181,71,0.9))',
+                    'drop-shadow(0 0 12px rgba(232,181,71,0.4))',
                   ],
                 }
               : active
@@ -206,11 +201,7 @@ function MagicCup({
           failed
             ? { duration: 0.45 }
             : done
-              ? {
-                  duration: 2.8,
-                  times:    [0, 0.14, 0.36, 0.60, 0.80, 0.92, 1.0],
-                  ease:     'easeOut',
-                }
+              ? { duration: 0.9, ease: 'easeOut' }
               : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
         }
       >
@@ -316,9 +307,6 @@ function MagicCup({
         {/* Steam */}
         <Steam active={active && !failed} />
       </motion.div>
-
-      {/* Done state — celebratory ring (removed green ring under cup) */}
-      {/* No celebratory ring under the cup after completion */}
     </div>
   );
 }
@@ -434,20 +422,390 @@ function Stepper({ stage, failed }: { stage: number; failed: boolean }) {
   );
 }
 
+/* ──────────── Auto-playing cup runner (popup bottom strip) ──────── */
+/*
+ * Same physics as the offline dino game but the cup jumps itself:
+ * when an obstacle enters the "reaction window" (proportional to speed)
+ * the AI fires a jump. No user input needed.
+ */
+
+const RUN_GW     = 320;
+const RUN_GH     = 88;
+const RUN_GROUND = 62;
+const RUN_CX     = 52;
+const RUN_CW     = 26;
+const RUN_CH     = 32;
+const RUN_GRAV   = 0.52;
+const RUN_JUMP   = -8.5;   // softer than the full game so cup stays in frame
+
+interface RunObs { id: number; x: number; w: number; h: number; kind: 0 | 1 }
+
+function AutoCupGame() {
+  const g = useRef({
+    charY:     0,
+    vel:       0,
+    obs:       [] as RunObs[],
+    score:     0,
+    speed:     4.8,
+    gndOff:    0,
+    nextObs:   220,
+    legTick:   0,
+    obsId:     0,
+    over:      false,
+    overTimer: 0,
+  });
+
+  const [, tick]      = useReducer((n: number) => n + 1, 0);
+  const [uiScore, setUs] = useState(0);
+  const [uiOver,  setUo] = useState(false);
+
+  useEffect(() => {
+    let raf: number;
+    let lastT = performance.now();
+
+    const loop = (t: number) => {
+      const dt = Math.min((t - lastT) / 16.667, 2.5);
+      lastT = t;
+      const s = g.current;
+
+      if (!s.over) {
+        s.vel     += RUN_GRAV * dt;
+        s.charY    = Math.max(0, s.charY - s.vel * dt);
+        s.score   += s.speed * dt * 0.09;
+        s.speed    = Math.min(4.8 + s.score * 0.003, 11);
+        s.gndOff   = (s.gndOff + s.speed * dt) % 44;
+        s.legTick += 0.2 * dt;
+
+        // AI: jump when the nearest threat enters the reaction window
+        if (s.charY <= 1) {
+          const window = s.speed * 17 + 30;
+          const threat = s.obs.find(o => o.x + o.w > RUN_CX && o.x - RUN_CX < window);
+          if (threat) s.vel = RUN_JUMP;
+        }
+
+        // Spawn obstacle
+        s.nextObs -= s.speed * dt;
+        if (s.nextObs <= 0) {
+          const kind = Math.random() < 0.5 ? 0 : 1;
+          s.obs.push({
+            id:   s.obsId++,
+            x:    RUN_GW + 8,
+            w:    kind === 0 ? 18 : 32,
+            h:    kind === 0 ? 28 : 22,
+            kind: kind as 0 | 1,
+          });
+          s.nextObs = 210 + Math.random() * 190;
+        }
+        s.obs = s.obs
+          .map(o => ({ ...o, x: o.x - s.speed * dt }))
+          .filter(o => o.x + o.w > -10);
+
+        // Collision (shrunk hitbox)
+        const cx1 = RUN_CX + 6, cx2 = RUN_CX + RUN_CW - 6;
+        const cy2 = RUN_GROUND - s.charY - 3;
+        for (const o of s.obs) {
+          if (cx2 > o.x + 4 && cx1 < o.x + o.w - 4 && cy2 > RUN_GROUND - o.h + 4) {
+            s.over = true; s.overTimer = 0;
+            setUo(true);
+            break;
+          }
+        }
+        setUs(Math.floor(s.score));
+      } else {
+        s.overTimer += dt;
+        if (s.overTimer > 55) {
+          // Auto-restart
+          Object.assign(s, { over: false, charY: 0, vel: 0, obs: [], score: 0, speed: 4.8, nextObs: 220 });
+          setUo(false); setUs(0);
+        }
+      }
+
+      tick();
+      raf = requestAnimationFrame(loop);
+    };
+
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const s        = g.current;
+  const charYPx  = Math.round(s.charY);
+  const airborne = charYPx > 3;
+
+  return (
+    <div
+      className="relative overflow-hidden select-none pointer-events-none"
+      style={{ height: RUN_GH, background: '#0b0906', borderTop: '1px solid rgba(212,162,74,0.10)' }}
+    >
+      {/* CRT scanlines */}
+      <div
+        className="absolute inset-0 z-10 pointer-events-none"
+        style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px)' }}
+      />
+
+      {/* Stars */}
+      {[...Array(10)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full bg-white"
+          style={{ width: i % 3 === 0 ? 2 : 1, height: i % 3 === 0 ? 2 : 1, left: `${4 + i * 9.5}%`, top: `${5 + (i * 13) % 26}%` }}
+          animate={{ opacity: [0.1, 0.6, 0.1] }}
+          transition={{ duration: 1.5 + i * 0.3, repeat: Infinity, delay: i * 0.22, ease: 'easeInOut' }}
+        />
+      ))}
+
+      {/* Ground line */}
+      <div style={{ position: 'absolute', left: 0, right: 0, top: RUN_GROUND, height: 1.5, background: 'rgba(212,162,74,0.32)' }} />
+
+      {/* Scrolling ground dashes */}
+      {[...Array(9)].map((_, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            left:   ((i * 44 - s.gndOff % 44 + RUN_GW) % RUN_GW) - 10,
+            top:    RUN_GROUND + 4,
+            width:  22, height: 1.5, borderRadius: 1,
+            background: 'rgba(212,162,74,0.11)',
+          }}
+        />
+      ))}
+
+      {/* Obstacles */}
+      {s.obs.map(o => (
+        <div key={o.id} style={{ position: 'absolute', left: o.x, top: RUN_GROUND - o.h }}>
+          <ObstacleSvg w={o.w} h={o.h} kind={o.kind} />
+        </div>
+      ))}
+
+      {/* Cup character */}
+      <div style={{ position: 'absolute', left: RUN_CX, top: RUN_GROUND - charYPx - RUN_CH }}>
+        <CupChar over={s.over} airborne={airborne} legTick={s.legTick} />
+      </div>
+
+      {/* Score */}
+      <div
+        className="absolute top-2 right-3 z-20 text-coffee-400/55 tabular-nums"
+        style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 'bold', letterSpacing: '0.14em' }}
+      >
+        {String(uiScore).padStart(5, '0')}
+      </div>
+
+      {/* Crash flash */}
+      {uiOver && <div className="absolute inset-0 bg-red-500/14 pointer-events-none z-10" />}
+    </div>
+  );
+}
+
+/* ─────────────────────── Brew Complete Popup ───────────────────── */
+
+function BrewCompletePopup({
+  drink,
+  onBrewMore,
+  onClose,
+}: {
+  drink:      DrinkType;
+  onBrewMore: () => void;
+  onClose:    () => void;
+}) {
+  const icon = drink === 'coffee' ? '☕' : drink === 'tea' ? '🍵' : '🥛';
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-5"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {/* Blurred backdrop */}
+      <motion.div
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Card */}
+      <motion.div
+        className="relative z-10 w-full max-w-xs"
+        initial={{ scale: 0.45, opacity: 0, y: 32 }}
+        animate={{ scale: 1,    opacity: 1, y: 0  }}
+        exit={{    scale: 0.85, opacity: 0, y: 12 }}
+        transition={{ type: 'spring', stiffness: 480, damping: 24 }}
+      >
+        {/* Pulsing amber glow behind the card */}
+        <motion.div
+          className="absolute -inset-3 rounded-[36px] pointer-events-none"
+          style={{ background: 'rgba(212,162,74,0.28)', filter: 'blur(18px)' }}
+          animate={{ opacity: [0.6, 1, 0.6], scale: [0.97, 1.03, 0.97] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        {/* Static amber border */}
+        <div
+          className="absolute -inset-[1.5px] rounded-[28px] pointer-events-none"
+          style={{ background: 'linear-gradient(140deg, #E8B547, #9a6010, #E8B547)' }}
+        />
+
+        {/* Inner card */}
+        <div
+          className="relative rounded-[27px] overflow-hidden"
+          style={{ background: 'linear-gradient(160deg, #1d1710 0%, #0e0c09 100%)' }}
+        >
+          {/* Subtle amber grid — gaming HUD texture */}
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(232,181,71,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(232,181,71,0.045) 1px, transparent 1px)',
+              backgroundSize: '22px 22px',
+            }}
+          />
+
+          {/* HUD corner brackets */}
+          {[
+            ['top-3 left-3',    'top-0 left-0',    'top-0 left-0'   ],
+            ['top-3 right-3',   'top-0 right-0',   'top-0 right-0'  ],
+            ['bottom-3 right-3','bottom-0 right-0','bottom-0 right-0'],
+            ['bottom-3 left-3', 'bottom-0 left-0', 'bottom-0 left-0'],
+          ].map(([wrap, h, v], i) => (
+            <div key={i} className={`absolute ${wrap} w-4 h-4 pointer-events-none`}>
+              <div className={`absolute ${h} w-full h-[1.5px] bg-coffee-400/55`} />
+              <div className={`absolute ${v} w-[1.5px] h-full bg-coffee-400/55`} />
+            </div>
+          ))}
+
+          <div className="px-6 pt-8 pb-6 flex flex-col items-center text-center">
+
+            {/* Achievement badge */}
+            <motion.div
+              initial={{ opacity: 0, y: -14, scale: 0.75 }}
+              animate={{ opacity: 1, y: 0,   scale: 1    }}
+              transition={{ delay: 0.08, type: 'spring', stiffness: 380, damping: 22 }}
+              className="mb-5 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full
+                border border-coffee-400/50 bg-coffee-500/10"
+            >
+              <Sparkles size={9} className="text-coffee-300" />
+              <span className="text-[9px] font-bold tracking-[0.32em] uppercase text-coffee-300">
+                Achievement Unlocked
+              </span>
+              <Sparkles size={9} className="text-coffee-300" />
+            </motion.div>
+
+            {/* Drink emoji */}
+            <motion.div
+              className="text-6xl mb-3 select-none"
+              style={{ filter: 'drop-shadow(0 0 18px rgba(232,181,71,0.75))' }}
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0  }}
+              transition={{ delay: 0.18, type: 'spring', stiffness: 440, damping: 16 }}
+            >
+              {icon}
+            </motion.div>
+
+            {/* Title */}
+            <motion.h2
+              className="text-[1.65rem] font-black uppercase tracking-widest text-white leading-none"
+              style={{ textShadow: '0 0 22px rgba(232,181,71,0.55)' }}
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: 1, scale: 1  }}
+              transition={{ delay: 0.28, type: 'spring', stiffness: 340, damping: 20 }}
+            >
+              Brew Complete!
+            </motion.h2>
+
+            {/* Star rating */}
+            <div className="flex gap-1.5 my-4">
+              {[0, 1, 2, 3, 4].map(i => (
+                <motion.span
+                  key={i}
+                  className="text-xl select-none"
+                  initial={{ scale: 0, opacity: 0, y: 8 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  transition={{
+                    delay: 0.44 + i * 0.09,
+                    type: 'spring',
+                    stiffness: 600,
+                    damping: 14,
+                  }}
+                >
+                  ⭐
+                </motion.span>
+              ))}
+            </div>
+
+            {/* Divider */}
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-coffee-400/30 to-transparent mb-4" />
+
+            {/* Collect hint */}
+            <motion.p
+              className="text-white/38 text-xs tracking-wide mb-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.92 }}
+            >
+              Collect your {drink} at the dispensing slot
+            </motion.p>
+
+            {/* Brew More CTA */}
+            <motion.button
+              onClick={onBrewMore}
+              whileTap={{ scale: 0.95 }}
+              className="relative w-full py-4 rounded-2xl overflow-hidden
+                font-black text-sm uppercase tracking-[0.22em] text-white
+                flex items-center justify-center gap-2.5 mb-3"
+              style={{
+                background: 'linear-gradient(130deg, #b8700e 0%, #e8a828 45%, #b8700e 100%)',
+                boxShadow: '0 0 28px rgba(232,181,71,0.42), 0 4px 20px rgba(0,0,0,0.45)',
+              }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0  }}
+              transition={{ delay: 1.0, type: 'spring', stiffness: 380, damping: 22 }}
+            >
+              {/* Shimmer sweep */}
+              <motion.span
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/22 to-transparent -skew-x-12"
+                animate={{ x: ['-130%', '230%'] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.2 }}
+              />
+              <Coffee size={17} />
+              Brew More
+            </motion.button>
+
+            {/* Dismiss */}
+            <motion.button
+              onClick={onClose}
+              className="text-white/25 hover:text-white/50 text-xs transition-colors py-1"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.25 }}
+            >
+              I&apos;m good, thanks
+            </motion.button>
+          </div>
+
+          {/* Auto-playing cup runner */}
+          <AutoCupGame />
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 /* ────────────────────────────── Screen ──────────────────────────── */
 
 export default function PaymentSuccess({
   drink,
   paymentId,
-  amountPaise,
   orderId,
+  onOrderMore,
 }: {
-  drink:       DrinkType;
-  paymentId:   string;
-  amountPaise: number;
-  orderId?:    string;
+  drink:        DrinkType;
+  paymentId:    string;
+  orderId?:     string;
+  onOrderMore?: () => void;
 }) {
-  const [status, setStatus] = useState<LiveStatus>('paid');
+  const [status,     setStatus]     = useState<LiveStatus>('paid');
+  const [showRepeat, setShowRepeat] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -470,6 +828,13 @@ export default function PaymentSuccess({
   const stage  = stepIndexOf(status);
   const done   = status === 'dispensed';
   const failed = status === 'failed' || status === 'refunded';
+
+  /* Show "Brew more" button 1.2 s after drink is dispensed */
+  useEffect(() => {
+    if (!done) { setShowRepeat(false); return; }
+    const t = setTimeout(() => setShowRepeat(true), 1200);
+    return () => clearTimeout(t);
+  }, [done]);
 
   /* Liquid fill — slow, continuous pour. We deliberately target a
    * high level even at `paid`, with a long linear transition, so the
@@ -569,7 +934,16 @@ export default function PaymentSuccess({
         <Stepper stage={stage} failed={failed} />
       </motion.div>
 
-      {/* Receipt card removed: Amount and Payment ID are no longer shown */}
+      {/* Brew Complete popup */}
+      <AnimatePresence>
+        {showRepeat && onOrderMore && (
+          <BrewCompletePopup
+            drink={drink}
+            onBrewMore={onOrderMore}
+            onClose={() => setShowRepeat(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

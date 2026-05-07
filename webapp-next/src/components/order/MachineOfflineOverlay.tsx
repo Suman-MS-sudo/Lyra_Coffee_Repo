@@ -17,7 +17,7 @@ interface Obs   { id: number; x: number; w: number; h: number; kind: 0 | 1 | 2 }
 interface Cloud { id: number; x: number; y: number; w: number; spd: number }
 
 // ── Coffee-cup SVG character ───────────────────────────────────────
-function CupChar({ over, airborne, legTick }: { over: boolean; airborne: boolean; legTick: number }) {
+export function CupChar({ over, airborne, legTick }: { over: boolean; airborne: boolean; legTick: number }) {
   const legA = Math.sin(legTick) > 0;
   return (
     <svg width={CHAR_W} height={CHAR_H + 10} viewBox="0 0 26 42" style={{ overflow: 'visible' }}>
@@ -75,7 +75,7 @@ function CupChar({ over, airborne, legTick }: { over: boolean; airborne: boolean
 }
 
 // ── Obstacle SVGs ──────────────────────────────────────────────────
-function ObstacleSvg({ w, h, kind }: { w: number; h: number; kind: 0 | 1 | 2 }) {
+export function ObstacleSvg({ w, h, kind }: { w: number; h: number; kind: 0 | 1 | 2 }) {
   if (kind === 0) return (            // tall bean stack
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
       {[0, 1, 2].map(i => {
