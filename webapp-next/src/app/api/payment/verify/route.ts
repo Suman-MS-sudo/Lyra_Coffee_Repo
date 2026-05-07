@@ -26,19 +26,7 @@ export async function POST(req: NextRequest) {
   }
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = parsed.data;
 
-  // ── Verify Razorpay signature (CRITICAL) ────────────────────────
-  const valid = verifyRazorpayPaymentSignature({
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature,
-  });
-
-  if (!valid) {
-    console.warn('[verify] Invalid Razorpay signature. IP:', ip, 'order:', razorpay_order_id);
-    return apiError('Invalid payment signature', 400);
-  }
-
-  // ── Look up order by Razorpay order ID ─────────────────────────
+  // ── Look up order + machine (must precede sig verify to get right secret) ──
   const { data: order, error: oErr } = await supabaseAdmin
     .from('coffee_orders')
     .select('id, machine_id, drink_type, customization, amount_paise, status')
@@ -48,6 +36,38 @@ export async function POST(req: NextRequest) {
   if (oErr || !order) {
     console.error('[verify] Order not found for rzp_order:', razorpay_order_id);
     return apiError('Order not found', 404);
+  }
+
+  // ── Resolve which key secret was used to create this order ──────
+  let rzpKeySecret: string | undefined;
+  const { data: machine } = await supabaseAdmin
+    .from('coffee_machines')
+    .select('customer_id')
+    .eq('id', order.machine_id)
+    .single();
+
+  if (machine?.customer_id) {
+    const { data: customer } = await supabaseAdmin
+      .from('coffee_customers')
+      .select('razorpay_key_secret')
+      .eq('id', machine.customer_id)
+      .single();
+    if (customer?.razorpay_key_secret) {
+      rzpKeySecret = customer.razorpay_key_secret;
+    }
+  }
+
+  // ── Verify Razorpay signature (CRITICAL) ────────────────────────
+  const valid = verifyRazorpayPaymentSignature({
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    key_secret: rzpKeySecret,
+  });
+
+  if (!valid) {
+    console.warn('[verify] Invalid Razorpay signature. IP:', ip, 'order:', razorpay_order_id);
+    return apiError('Invalid payment signature', 400);
   }
 
   // ── Idempotency: already processed? ────────────────────────────

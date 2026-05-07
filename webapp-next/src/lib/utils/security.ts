@@ -11,12 +11,14 @@ export function verifyRazorpayPaymentSignature({
   razorpay_order_id,
   razorpay_payment_id,
   razorpay_signature,
+  key_secret,
 }: {
   razorpay_order_id:   string;
   razorpay_payment_id: string;
   razorpay_signature:  string;
+  key_secret?:         string;
 }): boolean {
-  const secret = process.env.RAZORPAY_KEY_SECRET;
+  const secret = key_secret ?? process.env.RAZORPAY_KEY_SECRET;
   if (!secret) throw new Error('RAZORPAY_KEY_SECRET is not set');
 
   const body     = `${razorpay_order_id}|${razorpay_payment_id}`;

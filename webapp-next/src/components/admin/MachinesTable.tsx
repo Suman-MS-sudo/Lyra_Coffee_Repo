@@ -199,7 +199,44 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
     });
   };
 
-  const isOnline = (m: CoffeeMachine) => false; // requires last_ping — add when schema updated
+  const isOnline = (m: CoffeeMachine) => {
+    if (!m.last_seen_at) return false;
+    return Date.now() - new Date(m.last_seen_at).getTime() < 5 * 60 * 1000;
+  };
+
+  // ── Payment inline edit state ──
+  const [editPaymentId, setEditPaymentId]       = useState<string | null>(null);
+  const [editIsFree, setEditIsFree]             = useState(false);
+  const [editCoffeeRupees, setEditCoffeeRupees] = useState('');
+  const [editTeaRupees, setEditTeaRupees]       = useState('');
+
+  const openPaymentEdit = (m: CoffeeMachine) => {
+    setEditPaymentId(m.id);
+    setEditIsFree(m.is_free);
+    setEditCoffeeRupees(m.price_coffee_paise != null ? String(m.price_coffee_paise / 100) : '');
+    setEditTeaRupees(m.price_tea_paise != null ? String(m.price_tea_paise / 100) : '');
+  };
+
+  const savePayment = async (m: CoffeeMachine) => {
+    const body: Record<string, unknown> = { is_free: editIsFree };
+    if (!editIsFree) {
+      body.price_coffee_paise = rupeesToPaise(editCoffeeRupees);
+      body.price_tea_paise    = rupeesToPaise(editTeaRupees);
+    }
+    setMachines(prev => prev.map(x => x.id === m.id ? {
+      ...x, is_free: editIsFree,
+      price_coffee_paise: editIsFree ? null : rupeesToPaise(editCoffeeRupees),
+      price_tea_paise:    editIsFree ? null : rupeesToPaise(editTeaRupees),
+    } : x));
+    setEditPaymentId(null);
+    const res = await fetch(`/api/admin/machines/${m.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { toast.error('Failed to update payment'); router.refresh(); }
+    else          { toast.success('Payment settings updated'); }
+  };
 
   return (
     <div className="space-y-4">
@@ -413,6 +450,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                   <th className="text-left px-5 py-3.5 font-medium">Machine</th>
                   <th className="text-left px-5 py-3.5 font-medium">Location</th>
                   <th className="text-left px-5 py-3.5 font-medium">Customer</th>
+                  <th className="text-left px-5 py-3.5 font-medium">Payment</th>
                   <th className="text-left px-5 py-3.5 font-medium">Status</th>
                   <th className="text-left px-5 py-3.5 font-medium">Created</th>
                   <th className="text-right px-5 py-3.5 font-medium">Actions</th>
@@ -456,10 +494,70 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                         </select>
                       </div>
                     </td>
+
+                    {/* Payment inline editor */}
                     <td className="px-5 py-4">
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLES[m.status]}`}>
-                        {m.status}
-                      </span>
+                      {editPaymentId === m.id ? (
+                        <div className="flex flex-col gap-2 min-w-[160px]">
+                          <label className="flex items-center gap-2">
+                            <span className={`text-xs ${editIsFree ? 'text-green-400' : 'text-white/50'}`}>
+                              {editIsFree ? 'Free' : 'Paid (Razorpay)'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditIsFree(v => !v)}
+                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${editIsFree ? 'bg-green-500/70' : 'bg-white/10'}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editIsFree ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                            </button>
+                          </label>
+                          {!editIsFree && (
+                            <div className="flex gap-1.5">
+                              <input
+                                value={editCoffeeRupees}
+                                onChange={e => setEditCoffeeRupees(e.target.value)}
+                                placeholder="Coffee ₹"
+                                className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
+                              />
+                              <input
+                                value={editTeaRupees}
+                                onChange={e => setEditTeaRupees(e.target.value)}
+                                placeholder="Tea ₹"
+                                className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
+                              />
+                            </div>
+                          )}
+                          <div className="flex gap-1.5">
+                            <button onClick={() => savePayment(m)} className="px-2.5 py-1 rounded-lg bg-coffee-500 text-black text-xs font-semibold hover:bg-coffee-400 transition-colors">Save</button>
+                            <button onClick={() => setEditPaymentId(null)} className="px-2.5 py-1 rounded-lg bg-white/5 text-white/50 text-xs hover:bg-white/10 transition-colors">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => openPaymentEdit(m)} className="text-left group space-y-0.5">
+                          {m.is_free ? (
+                            <span className="text-xs text-green-400 font-medium">Free</span>
+                          ) : (
+                            <div className="text-xs text-white/50 space-y-0.5">
+                              <div>☕ {m.price_coffee_paise != null ? `₹${m.price_coffee_paise / 100}` : 'default'}</div>
+                              <div>🍵 {m.price_tea_paise != null ? `₹${m.price_tea_paise / 100}` : 'default'}</div>
+                            </div>
+                          )}
+                          <div className="text-[10px] text-white/20 group-hover:text-coffee-400 transition-colors">Edit →</div>
+                        </button>
+                      )}
+                    </td>
+
+                    {/* Status + online indicator */}
+                    <td className="px-5 py-4">
+                      <div className="space-y-1.5">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLES[m.status]}`}>
+                          {m.status}
+                        </span>
+                        <div className={`flex items-center gap-1 text-[11px] ${isOnline(m) ? 'text-green-400' : 'text-white/25'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isOnline(m) ? 'bg-green-400 animate-pulse' : 'bg-white/20'}`} />
+                          {isOnline(m) ? 'Online' : 'Offline'}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-white/40 text-xs">
                       <span className="flex items-center gap-1.5">

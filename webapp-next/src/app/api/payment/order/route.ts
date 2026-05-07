@@ -4,11 +4,6 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { createOrderSchema } from '@/lib/validators/schemas';
 import { getMachineDrinkPrice, checkRateLimit, getClientIp, apiError } from '@/lib/utils/security';
 
-const razorpay = new Razorpay({
-  key_id:     process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
-
 export async function POST(req: NextRequest) {
   // ── Rate limit (20 req/min per IP) ─────────────────────────────
   const ip = getClientIp(req);
@@ -30,13 +25,32 @@ export async function POST(req: NextRequest) {
   // ── Verify machine is active ────────────────────────────────────
   const { data: machine, error: mErr } = await supabaseAdmin
     .from('coffee_machines')
-    .select('id, status, is_free, price_coffee_paise, price_tea_paise')
+    .select('id, status, is_free, price_coffee_paise, price_tea_paise, customer_id')
     .eq('id', machine_id)
     .single();
 
   if (mErr || !machine)             return apiError('Machine not found', 404);
   if (machine.status !== 'active')  return apiError('Machine is not available', 409);
   if (machine.is_free)              return apiError('This machine is free — use the free-order endpoint', 409);
+
+  // ── Resolve Razorpay keys (customer-owned keys take precedence) ─
+  let rzpKeyId     = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!;
+  let rzpKeySecret = process.env.RAZORPAY_KEY_SECRET!;
+
+  if (machine.customer_id) {
+    const { data: customer } = await supabaseAdmin
+      .from('coffee_customers')
+      .select('razorpay_key_id, razorpay_key_secret')
+      .eq('id', machine.customer_id)
+      .single();
+
+    if (customer?.razorpay_key_id && customer?.razorpay_key_secret) {
+      rzpKeyId     = customer.razorpay_key_id;
+      rzpKeySecret = customer.razorpay_key_secret;
+    }
+  }
+
+  const razorpay = new Razorpay({ key_id: rzpKeyId, key_secret: rzpKeySecret });
 
   // ── Calculate price ─────────────────────────────────────────────
   const amount_paise = getMachineDrinkPrice(machine, drink_type);
@@ -67,7 +81,7 @@ export async function POST(req: NextRequest) {
     rzpOrder = await razorpay.orders.create({
       amount:   amount_paise,
       currency: 'INR',
-      receipt:  dbOrder.id,                     // our UUID as receipt for cross-reference
+      receipt:  dbOrder.id,
       notes: {
         internal_order_id: dbOrder.id,
         machine_id,
@@ -76,7 +90,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('[order] Razorpay error:', err);
-    // Clean up the pending order we just created
     await supabaseAdmin.from('coffee_orders').delete().eq('id', dbOrder.id);
     return apiError('Payment provider error. Please try again.', 502);
   }
@@ -91,8 +104,7 @@ export async function POST(req: NextRequest) {
     order_id:  rzpOrder.id,
     amount:    rzpOrder.amount,
     currency:  rzpOrder.currency,
-    key_id:    process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-    // Internal ID returned so verify route has it
+    key_id:    rzpKeyId,
     internal_order_id: dbOrder.id,
   });
 }

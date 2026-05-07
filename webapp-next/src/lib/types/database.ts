@@ -83,13 +83,15 @@ export interface CoffeeAdmin {
 }
 
 export interface CoffeeCustomer {
-  id:            string;
-  email:         string;
-  name:          string;
-  company:       string | null;
-  is_active:     boolean;
-  last_login_at: string | null;
-  created_at:    string;
+  id:                  string;
+  email:               string;
+  name:                string;
+  company:             string | null;
+  is_active:           boolean;
+  last_login_at:       string | null;
+  razorpay_key_id:     string | null;
+  razorpay_key_secret: string | null;
+  created_at:          string;
   // password_hash is never returned to the application layer
 }
 

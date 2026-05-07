@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, CpuIcon, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, CpuIcon, Settings, LogOut, Menu, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { BrandMonogram, BrandWordmark } from '@/components/branding/BrandWordmark';
@@ -10,6 +10,7 @@ import { BrandMonogram, BrandWordmark } from '@/components/branding/BrandWordmar
 const NAV = [
   { href: '/customer',          label: 'Dashboard',   icon: LayoutDashboard },
   { href: '/customer/machines', label: 'My Machines', icon: CpuIcon         },
+  { href: '/customer/settings', label: 'Settings',    icon: Settings        },
 ] as const;
 
 export default function CustomerSidebar() {

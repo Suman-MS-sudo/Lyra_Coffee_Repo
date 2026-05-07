@@ -75,13 +75,13 @@ constexpr int PIN_BTN_PROV   = 13;
 // ────────────────────────────────────────────────────────────────
 struct Recipe { uint16_t decoct_ms; uint16_t milk_ms; };
 
-constexpr Recipe RECIPE_LIGHT  = {  6000, 18000 };  // 20:80
-constexpr Recipe RECIPE_MEDIUM = {  9000, 14000 };  // 30:70
-constexpr Recipe RECIPE_STRONG = { 12000, 10000 };  // 40:60
+constexpr Recipe RECIPE_LIGHT  = {  2000,  6000 };  // 20:80
+constexpr Recipe RECIPE_MEDIUM = {  3000,  4700 };  // 30:70
+constexpr Recipe RECIPE_STRONG = {  4000,  3300 };  // 40:60
 
 constexpr uint16_t AGITATE_MS       = 3000;
-constexpr uint16_t FLUSH_MS         = 3000;
-constexpr uint16_t MILK_DISPENSE_MS = 15000;  // fixed volume for milk-only orders (strength has no meaning for milk)
+constexpr uint16_t FLUSH_MS         = 1000;
+constexpr uint16_t MILK_DISPENSE_MS = 5000;  // fixed volume for milk-only orders (strength has no meaning for milk)
 
 // ────────────────────────────────────────────────────────────────
 //  Network behaviour
