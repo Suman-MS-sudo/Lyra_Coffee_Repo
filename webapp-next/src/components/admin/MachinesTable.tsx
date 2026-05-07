@@ -52,6 +52,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
   const [newIsFree, setNewIsFree]     = useState(false);
   const [newCoffeeRupees, setNewCoffeeRupees] = useState('');
   const [newTeaRupees, setNewTeaRupees]       = useState('');
+  const [newMilkRupees, setNewMilkRupees]     = useState('');
   const [newStatus, setNewStatus]     = useState<MachineStatus>('active');
 
   // ── Post-create dialog ──
@@ -61,7 +62,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
   const resetForm = () => {
     setNewName(''); setNewLocation(''); setNewCustomer('');
     setNewMacId(''); setNewIsFree(false);
-    setNewCoffeeRupees(''); setNewTeaRupees('');
+    setNewCoffeeRupees(''); setNewTeaRupees(''); setNewMilkRupees('');
     setNewStatus('active');
   };
 
@@ -90,6 +91,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
     if (!newIsFree) {
       body.price_coffee_paise = rupeesToPaise(newCoffeeRupees);
       body.price_tea_paise    = rupeesToPaise(newTeaRupees);
+      body.price_milk_paise   = rupeesToPaise(newMilkRupees);
     }
 
     setAdding(true);
@@ -209,12 +211,14 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
   const [editIsFree, setEditIsFree]             = useState(false);
   const [editCoffeeRupees, setEditCoffeeRupees] = useState('');
   const [editTeaRupees, setEditTeaRupees]       = useState('');
+  const [editMilkRupees, setEditMilkRupees]     = useState('');
 
   const openPaymentEdit = (m: CoffeeMachine) => {
     setEditPaymentId(m.id);
     setEditIsFree(m.is_free);
     setEditCoffeeRupees(m.price_coffee_paise != null ? String(m.price_coffee_paise / 100) : '');
-    setEditTeaRupees(m.price_tea_paise != null ? String(m.price_tea_paise / 100) : '');
+    setEditTeaRupees(m.price_tea_paise   != null ? String(m.price_tea_paise   / 100) : '');
+    setEditMilkRupees(m.price_milk_paise != null ? String(m.price_milk_paise  / 100) : '');
   };
 
   const savePayment = async (m: CoffeeMachine) => {
@@ -222,11 +226,13 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
     if (!editIsFree) {
       body.price_coffee_paise = rupeesToPaise(editCoffeeRupees);
       body.price_tea_paise    = rupeesToPaise(editTeaRupees);
+      body.price_milk_paise   = rupeesToPaise(editMilkRupees);
     }
     setMachines(prev => prev.map(x => x.id === m.id ? {
       ...x, is_free: editIsFree,
       price_coffee_paise: editIsFree ? null : rupeesToPaise(editCoffeeRupees),
       price_tea_paise:    editIsFree ? null : rupeesToPaise(editTeaRupees),
+      price_milk_paise:   editIsFree ? null : rupeesToPaise(editMilkRupees),
     } : x));
     setEditPaymentId(null);
     const res = await fetch(`/api/admin/machines/${m.id}`, {
@@ -339,9 +345,9 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
             </div>
 
             {!newIsFree && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <label className="block">
-                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">Coffee price (₹)</span>
+                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">☕ Coffee (₹)</span>
                   <input
                     inputMode="decimal"
                     value={newCoffeeRupees}
@@ -351,11 +357,21 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">Tea price (₹)</span>
+                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">🍵 Tea (₹)</span>
                   <input
                     inputMode="decimal"
                     value={newTeaRupees}
                     onChange={e => setNewTeaRupees(e.target.value)}
+                    placeholder="default"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-coffee-500/60 transition-colors"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">🥛 Milk (₹)</span>
+                  <input
+                    inputMode="decimal"
+                    value={newMilkRupees}
+                    onChange={e => setNewMilkRupees(e.target.value)}
                     placeholder="default"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-coffee-500/60 transition-colors"
                   />
@@ -516,14 +532,20 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                               <input
                                 value={editCoffeeRupees}
                                 onChange={e => setEditCoffeeRupees(e.target.value)}
-                                placeholder="Coffee ₹"
-                                className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
+                                placeholder="☕ ₹"
+                                className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
                               />
                               <input
                                 value={editTeaRupees}
                                 onChange={e => setEditTeaRupees(e.target.value)}
-                                placeholder="Tea ₹"
-                                className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
+                                placeholder="🍵 ₹"
+                                className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
+                              />
+                              <input
+                                value={editMilkRupees}
+                                onChange={e => setEditMilkRupees(e.target.value)}
+                                placeholder="🥛 ₹"
+                                className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
                               />
                             </div>
                           )}
@@ -539,7 +561,8 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                           ) : (
                             <div className="text-xs text-white/50 space-y-0.5">
                               <div>☕ {m.price_coffee_paise != null ? `₹${m.price_coffee_paise / 100}` : 'default'}</div>
-                              <div>🍵 {m.price_tea_paise != null ? `₹${m.price_tea_paise / 100}` : 'default'}</div>
+                              <div>🍵 {m.price_tea_paise   != null ? `₹${m.price_tea_paise   / 100}` : 'default'}</div>
+                              <div>🥛 {m.price_milk_paise  != null ? `₹${m.price_milk_paise  / 100}` : 'default'}</div>
                             </div>
                           )}
                           <div className="text-[10px] text-white/20 group-hover:text-coffee-400 transition-colors">Edit →</div>
