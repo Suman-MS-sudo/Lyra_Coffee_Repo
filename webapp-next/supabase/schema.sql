@@ -51,7 +51,7 @@ CREATE OR REPLACE TRIGGER coffee_machines_updated_at
 CREATE TABLE IF NOT EXISTS coffee_orders (
     id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     machine_id      UUID        NOT NULL REFERENCES coffee_machines(id) ON DELETE RESTRICT,
-    drink_type      TEXT        NOT NULL CHECK (drink_type IN ('coffee', 'tea')),
+    drink_type      TEXT        NOT NULL CHECK (drink_type IN ('coffee', 'tea', 'milk')),
     customization   JSONB       NOT NULL DEFAULT '{}'::JSONB,
     -- Expected shape: { "sugar": "medium", "strength": "strong", "size": "regular", "milk_pct": 50 }
     amount_paise    INTEGER     NOT NULL CHECK (amount_paise > 0),

@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Coffee, Sparkles, XCircle } from 'lucide-react';
 import { formatPrice } from '@/lib/utils/cn';
 
+import type { DrinkType } from '@/lib/types/database';
+
 type LiveStatus =
   | 'pending'
   | 'paid'
@@ -15,7 +17,7 @@ type LiveStatus =
 
 /* ───────────────────────── Pipeline mapping ─────────────────────── */
 
-const STEPS = ['Payment', 'Brewing', 'Ready'] as const;
+const STEPS = ['Processing', 'Brewing', 'Ready'] as const;
 
 function stepIndexOf(s: LiveStatus): number {
   if (s === 'dispensed')                      return 3; // all done
@@ -129,15 +131,19 @@ function MagicCup({
   failed,
 }: {
   fill:   number;
-  drink:  'coffee' | 'tea';
+  drink:  DrinkType;
   active: boolean;
   done:   boolean;
   failed: boolean;
 }) {
-  const liquidColor =
-    drink === 'coffee'
-      ? 'from-[#5a2f12] via-[#7a3e16] to-[#a6571c]'
-      : 'from-[#9a4a16] via-[#c87326] to-[#e9a14a]';
+  let liquidColor = '';
+  if (drink === 'coffee') {
+    liquidColor = 'from-[#5a2f12] via-[#7a3e16] to-[#a6571c]';
+  } else if (drink === 'tea') {
+    liquidColor = 'from-[#9a4a16] via-[#c87326] to-[#e9a14a]';
+  } else {
+    liquidColor = 'from-[#b8864a] via-[#d4a96a] to-[#eedbb0]'; // milk: warm golden-cream, visible against white cup
+  }
 
   return (
     <div className="relative w-44 h-44 flex items-center justify-center">
@@ -174,11 +180,24 @@ function MagicCup({
       {/* The cup */}
       <motion.div
         className="relative z-10"
+        style={{ transformPerspective: 700 }}
         animate={
           failed
             ? { x: [0, -6, 6, -4, 4, 0] }
             : done
-              ? { rotateY: [0, 180, 0], scale: [1, 1.08, 1], filter: 'none' }
+              ? {
+                  rotateY: [0, 720, 1260, 1620, 1800, 1830, 1800],
+                  scale:   [1, 1.08, 1.14, 1.10, 1.05, 1.08, 1.05],
+                  filter: [
+                    'drop-shadow(0 0 0px rgba(232,181,71,0))',
+                    'drop-shadow(0 0 40px rgba(232,181,71,1)) brightness(1.5)',
+                    'drop-shadow(0 0 28px rgba(232,181,71,0.8)) brightness(1.3)',
+                    'drop-shadow(0 0 16px rgba(232,181,71,0.5)) brightness(1.15)',
+                    'drop-shadow(0 0 10px rgba(232,181,71,0.3)) brightness(1.08)',
+                    'drop-shadow(0 0 14px rgba(232,181,71,0.4)) brightness(1.12)',
+                    'drop-shadow(0 0 10px rgba(232,181,71,0.3)) brightness(1.08)',
+                  ],
+                }
               : active
                 ? { y: [0, -3, 0], rotate: [-1.2, 1.2, -1.2] }
                 : { y: 0, rotate: 0 }
@@ -187,10 +206,13 @@ function MagicCup({
           failed
             ? { duration: 0.45 }
             : done
-              ? { duration: 1.2, ease: 'easeInOut' }
+              ? {
+                  duration: 2.8,
+                  times:    [0, 0.14, 0.36, 0.60, 0.80, 0.92, 1.0],
+                  ease:     'easeOut',
+                }
               : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
         }
-        style={done ? { perspective: 600 } : {}}
       >
         {/* Cup body */}
         <div className="relative w-20 h-20 rounded-b-[2.2rem] rounded-t-md bg-white/95 shadow-[0_10px_30px_-10px_rgba(0,0,0,.7)] overflow-hidden border border-white/40">
@@ -215,7 +237,7 @@ function MagicCup({
             >
               <motion.path
                 fill="currentColor"
-                className={drink === 'coffee' ? 'text-[#a6571c]' : 'text-[#e9a14a]'}
+                className={drink === 'coffee' ? 'text-[#a6571c]' : drink === 'tea' ? 'text-[#e9a14a]' : 'text-[#d4a96a]'}
                 animate={{
                   d: [
                     'M0 8 Q 20 2 40 8 T 80 8 V12 H0 Z',
@@ -301,25 +323,27 @@ function MagicCup({
   );
 }
 
-/** Confetti burst when the drink is ready. */
-function Confetti() {
-  const bits = useMemo(
+/** Magical golden sparkle burst when the drink is ready. */
+function MagicBurst() {
+  const particles = useMemo(
     () =>
-      Array.from({ length: 22 }).map((_, i) => {
-        const a    = (i / 22) * Math.PI * 2;
-        const dist = 110 + ((i * 13) % 70);
+      Array.from({ length: 30 }).map((_, i) => {
+        const angle = (i / 30) * Math.PI * 2;
+        const dist  = 72 + ((i * 19) % 64);
+        const size  = 2.5 + ((i * 7) % 6);
         return {
           id:    i,
-          x:     Math.cos(a) * dist,
-          y:     Math.sin(a) * dist,
-          rot:   (i * 47) % 360,
+          x:     Math.cos(angle) * dist,
+          y:     Math.sin(angle) * dist,
+          size,
+          delay: (i % 10) * 0.045,
           color:
-            i % 3 === 0
-              ? '#E8B547'
-              : i % 3 === 1
-                ? '#F0D58C'
-                : '#34d399',
-          delay: (i % 6) * 0.04,
+            i % 4 === 0 ? '#E8B547'
+            : i % 4 === 1 ? '#F0D58C'
+            : i % 4 === 2 ? '#fffbe0'
+            : '#D4A24A',
+          glow:  `0 0 ${8 + size * 2}px rgba(232,181,71,0.95)`,
+          dur:   1.4 + ((i * 11) % 6) * 0.08,
         };
       }),
     [],
@@ -327,19 +351,19 @@ function Confetti() {
 
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-      {bits.map(b => (
+      {particles.map(p => (
         <motion.span
-          key={b.id}
-          className="absolute block w-1.5 h-2.5 rounded-sm"
-          style={{ background: b.color }}
-          initial={{ x: 0, y: 0, opacity: 0, rotate: 0 }}
+          key={p.id}
+          className="absolute rounded-full"
+          style={{ width: p.size, height: p.size, background: p.color, boxShadow: p.glow }}
+          initial={{ x: 0, y: 0, opacity: 0, scale: 0 }}
           animate={{
-            x:       b.x,
-            y:       b.y,
-            opacity: [0, 1, 0],
-            rotate:  b.rot,
+            x:       [0, p.x * 0.55, p.x],
+            y:       [0, p.y * 0.55, p.y],
+            opacity: [0, 1, 0.9, 0],
+            scale:   [0, 2.2, 1.4, 0],
           }}
-          transition={{ duration: 1.4, delay: b.delay, ease: 'easeOut' }}
+          transition={{ duration: p.dur, delay: p.delay, ease: 'easeOut' }}
         />
       ))}
     </div>
@@ -418,7 +442,7 @@ export default function PaymentSuccess({
   amountPaise,
   orderId,
 }: {
-  drink:       'coffee' | 'tea';
+  drink:       DrinkType;
   paymentId:   string;
   amountPaise: number;
   orderId?:    string;
@@ -466,18 +490,18 @@ export default function PaymentSuccess({
 
   const subline =
     failed ? 'The machine could not complete this order. Please contact staff for a refund.' :
-    done   ? `Please collect your ${drink === 'coffee' ? '☕ filter coffee' : '🍵 tea'} at the dispensing slot.` :
-             `A little Lyra magic is preparing your ${drink === 'coffee' ? 'filter coffee' : 'tea'}.`;
+    done   ? `Please collect your ${drink === 'coffee' ? '☕ filter coffee' : drink === 'tea' ? '🍵 tea' : '🥛 hot milk'} at the dispensing slot.` :
+             `A little Lyra magic is preparing your ${drink === 'coffee' ? 'filter coffee' : drink === 'tea' ? 'tea' : 'hot milk'}.`;
 
   return (
     <div className="relative flex flex-col items-center text-center pt-6 pb-8 overflow-hidden">
-      {/* Ambient gold aurora behind everything */}
+      {/* Ambient gold aurora — fixed so it covers the full viewport including the header */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
+        className="pointer-events-none fixed inset-0 -z-10"
         style={{
           background:
-            'radial-gradient(60% 50% at 50% 30%, rgba(232,181,71,.18), transparent 60%), radial-gradient(40% 35% at 50% 80%, rgba(212,162,74,.12), transparent 70%)',
+            'radial-gradient(60% 50% at 50% 30%, rgba(232,181,71,.22), transparent 60%), radial-gradient(40% 35% at 50% 80%, rgba(212,162,74,.14), transparent 70%)',
         }}
       />
 
@@ -509,7 +533,7 @@ export default function PaymentSuccess({
           done={done}
           failed={failed}
         />
-        <AnimatePresence>{done && <Confetti key={paymentId} />}</AnimatePresence>
+        <AnimatePresence>{done && <MagicBurst key={paymentId} />}</AnimatePresence>
       </div>
 
       {/* Failed icon overlay */}

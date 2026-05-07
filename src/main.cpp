@@ -79,8 +79,9 @@ constexpr Recipe RECIPE_LIGHT  = {  6000, 18000 };  // 20:80
 constexpr Recipe RECIPE_MEDIUM = {  9000, 14000 };  // 30:70
 constexpr Recipe RECIPE_STRONG = { 12000, 10000 };  // 40:60
 
-constexpr uint16_t AGITATE_MS = 3000;
-constexpr uint16_t FLUSH_MS   = 3000;
+constexpr uint16_t AGITATE_MS       = 3000;
+constexpr uint16_t FLUSH_MS         = 3000;
+constexpr uint16_t MILK_DISPENSE_MS = 15000;  // fixed volume for milk-only orders (strength has no meaning for milk)
 
 // ────────────────────────────────────────────────────────────────
 //  Network behaviour
@@ -815,6 +816,14 @@ void runRecipe(const String& drink, const Recipe& r, bool withMilk) {
   busy = true;
   btnLockUntil = millis() + BTN_LOCKOUT_MS;
 
+  bool isMilkOnly = (drink == "milk");
+
+  if (isMilkOnly && !withMilk) {
+    Serial.println(F("[dispense] milk-only order with milk=false — nothing to do"));
+    busy = false;
+    return;
+  }
+
   int decA = -1, decB = -1;
   if      (drink == "coffee") { decA = PIN_COFFEE_A; decB = PIN_COFFEE_B; }
   else if (drink == "tea")    { decA = PIN_TEA_A;    decB = PIN_TEA_B;    }
@@ -832,11 +841,14 @@ void runRecipe(const String& drink, const Recipe& r, bool withMilk) {
   }
 
   if (withMilk) {
+    // Milk-only orders use a fixed volume — strength is meaningless for plain milk.
+    uint16_t milkMs = isMilkOnly ? MILK_DISPENSE_MS : r.milk_ms;
+
     Serial.println(F("[dispense] milk agitate"));
     reverseMotor(PIN_MILK_A, PIN_MILK_B, AGITATE_MS);
 
-    Serial.printf("[dispense] milk forward %u ms\n", r.milk_ms);
-    forwardMotor(PIN_MILK_A, PIN_MILK_B, r.milk_ms);
+    Serial.printf("[dispense] milk forward %u ms\n", milkMs);
+    forwardMotor(PIN_MILK_A, PIN_MILK_B, milkMs);
 
     Serial.println(F("[dispense] milk flush"));
     reverseMotor(PIN_MILK_A, PIN_MILK_B, FLUSH_MS);
@@ -852,11 +864,13 @@ void runRecipe(const String& drink, const Recipe& r, bool withMilk) {
 //  Low-level motor helpers
 // ================================================================
 void forwardMotor(int a, int b, uint16_t ms) {
+  esp_task_wdt_reset();
   digitalWrite(a, HIGH);
   digitalWrite(b, LOW);
   delay(ms);
 }
 void reverseMotor(int a, int b, uint16_t ms) {
+  esp_task_wdt_reset();
   digitalWrite(a, LOW);
   digitalWrite(b, HIGH);
   delay(ms);

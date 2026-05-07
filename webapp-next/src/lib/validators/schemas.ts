@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 export const uuidSchema = z.string().uuid();
 
-export const drinkTypeSchema = z.enum(['coffee', 'tea']);
+export const drinkTypeSchema = z.enum(['coffee', 'tea', 'milk']);
 
 export const customizationSchema = z.object({
   sugar:    z.enum(['none', 'low', 'medium', 'high']).default('medium'),

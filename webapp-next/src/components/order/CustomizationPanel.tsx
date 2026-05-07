@@ -5,8 +5,10 @@ import { ChevronLeft } from 'lucide-react';
 import type { DrinkCustomization } from '@/lib/types/database';
 import { cn } from '@/lib/utils/cn';
 
+import type { DrinkType } from '@/lib/types/database';
+
 interface Props {
-  drink:   'coffee' | 'tea';
+  drink:   DrinkType;
   initial: DrinkCustomization;
   onBack:  () => void;
   onNext:  (c: DrinkCustomization) => void;
@@ -87,6 +89,7 @@ export default function CustomizationPanel({ drink, initial, onBack, onNext }: P
     setC(prev => ({ ...prev, [key]: val }));
 
   const showStrength = drink === 'coffee' || drink === 'tea';
+  const showMilk     = drink === 'coffee' || drink === 'tea';
 
   return (
     <div>
@@ -98,10 +101,14 @@ export default function CustomizationPanel({ drink, initial, onBack, onNext }: P
         <ChevronLeft size={16} /> Back
       </button>
 
+
       <h2 className="display text-3xl text-white mb-1">
-        Customise your <span className="italic text-coffee-300">{drink === 'coffee' ? 'filter coffee' : 'tea'}</span>
+        Customise your <span className="italic text-coffee-300">
+          {drink === 'coffee' ? 'filter coffee' : drink === 'tea' ? 'tea' : 'hot milk'}
+        </span>
       </h2>
       <p className="text-white/40 text-sm mb-8">Regular 100ml · make it exactly how you like it</p>
+
 
       {showStrength && (
         <OptionRow
@@ -116,7 +123,7 @@ export default function CustomizationPanel({ drink, initial, onBack, onNext }: P
         />
       )}
 
-      <MilkToggle value={c.milk} onChange={v => set('milk', v)} />
+      {showMilk && <MilkToggle value={c.milk} onChange={v => set('milk', v)} />}
 
       <button
         onClick={() => onNext(c)}

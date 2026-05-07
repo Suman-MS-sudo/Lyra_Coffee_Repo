@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils/cn';
 
@@ -8,12 +7,11 @@ const DRINKS = [
   {
     id:    'coffee' as const,
     image: '/drinks/filter-coffee.png',
-    name:  'Filter Coffee',
+    name:  'Coffee',
     tag:   'Kaapi',
     desc:  'Authentic South Indian filter coffee.',
-    glow:  'rgba(140, 106, 31, 0.55)',     // deep bronze gold
+    glow:  'rgba(140, 106, 31, 0.6)',
     accent:'#E0B13A',
-    ring:  'group-hover:ring-coffee-500/50',
     badge: 'from ₹20',
   },
   {
@@ -22,21 +20,31 @@ const DRINKS = [
     name:  'Tea',
     tag:   'Chai',
     desc:  'Freshly brewed hot tea with boiled milk',
-    glow:  'rgba(212, 162, 74, 0.45)',     // light champagne gold
+    glow:  'rgba(212, 162, 74, 0.5)',
     accent:'#F0D58C',
-    ring:  'group-hover:ring-coffee-300/50',
+    badge: 'from ₹15',
+  },
+  {
+    id:    'milk' as const,
+    image: '/drinks/milk.png',
+    name:  'Hot Milk',
+    tag:   'Milk',
+    desc:  'Pure hot milk, fresh from the machine.',
+    glow:  'rgba(240, 230, 210, 0.4)',
+    accent:'#F8F8F8',
     badge: 'from ₹15',
   },
 ];
 
+import type { DrinkType } from '@/lib/types/database';
+
 export default function DrinkSelector({
   onSelect,
 }: {
-  onSelect: (drink: 'coffee' | 'tea') => void;
+  onSelect: (drink: DrinkType) => void;
 }) {
   return (
     <div className="animate-fade-in">
-      {/* Section header */}
       <div className="mb-8">
         <p className="text-[10px] font-semibold tracking-[0.32em] text-coffee-400 uppercase mb-2">
           Our Menu
@@ -45,79 +53,55 @@ export default function DrinkSelector({
           Pick your <span className="italic text-coffee-300">brew</span>
         </h2>
         <p className="text-white/45 text-sm mt-2">
-          Freshly prepared filter coffee &amp; tea, made to order.
+          Freshly prepared filter coffee, tea, and hot milk, made to order.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-5">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {DRINKS.map((d, i) => (
           <motion.button
             key={d.id}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1, duration: 0.45, ease: [0.22, 0.68, 0, 1.05] }}
+            whileHover={{
+              y: -6,
+              boxShadow: `0 28px 80px -16px rgba(0,0,0,0.8), 0 0 0 1px ${d.accent}55`,
+              transition: { duration: 0.28, ease: 'easeOut' },
+            }}
+            whileTap={{ scale: 0.97, y: 0, transition: { duration: 0.12 } }}
             onClick={() => onSelect(d.id)}
             className={cn(
-              'group relative flex flex-col text-left',
-              'rounded-[28px] overflow-hidden',
-              'surface',
-              'ring-1 ring-white/5',
-              d.ring,
-              'transition-all duration-300',
-              'hover:-translate-y-1 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)]',
-              'active:scale-[.98] active:translate-y-0',
-              'cursor-pointer select-none',
+              'group relative flex flex-col text-left overflow-hidden cursor-pointer select-none',
+              'rounded-[22px] surface',
             )}
           >
-            {/* Image stage with radial brand glow */}
+            {/* Image zone — glow background bleeds seamlessly into card body */}
             <div
-              className="relative h-[210px] overflow-hidden"
+              className="relative h-[160px] overflow-hidden"
               style={{
-                background: `radial-gradient(60% 70% at 50% 55%, ${d.glow} 0%, transparent 70%), linear-gradient(to bottom, rgba(255,255,255,.04), rgba(0,0,0,.25))`,
+                background: `radial-gradient(ellipse at 50% 62%, ${d.glow} 0%, transparent 72%)`,
               }}
             >
-              {/* Subtle vignette frame */}
-              <div className="absolute inset-3 rounded-2xl ring-1 ring-white/5" />
-
-              <Image
+              <img
                 src={d.image}
                 alt={d.name}
-                width={220}
-                height={220}
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain max-h-[180px] w-auto drop-shadow-[0_18px_28px_rgba(0,0,0,0.55)] transition-transform duration-500 ease-out group-hover:scale-[1.07] group-hover:-translate-y-[54%]"
-                priority
+                className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl
+                           transition-transform duration-500 ease-out group-hover:scale-[1.09]"
               />
-
-              {/* Price chip */}
-              <span className="absolute top-3.5 right-3.5 text-[10px] font-semibold text-white bg-black/45 backdrop-blur-md px-2.5 py-1 rounded-full ring-1 ring-white/10">
-                {d.badge}
-              </span>
-
-              {/* Bottom fade for legibility */}
-              <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/40 to-transparent" />
+              {/* Gradient bleed — fades image area into the dark card surface */}
+              <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/75 to-transparent pointer-events-none" />
             </div>
 
             {/* Text block */}
-            <div className="px-5 py-5 flex flex-col items-start">
+            <div className="px-3 pt-2 pb-3 flex flex-col items-center text-center">
               <span
-                className="text-[10px] font-semibold tracking-[0.28em] uppercase mb-1"
+                className="text-[9px] font-semibold tracking-[0.28em] uppercase mb-0.5"
                 style={{ color: d.accent }}
               >
                 {d.tag}
               </span>
-              <span className="display text-xl text-white leading-snug">{d.name}</span>
-              <span className="text-white/45 text-[13px] mt-2 leading-relaxed">{d.desc}</span>
-
-              {/* Footer cue */}
-              <div className="mt-4 pt-3 border-t border-white/5 w-full flex items-center justify-between">
-                <span className="text-[11px] text-white/35 tracking-wide">Customise &amp; order</span>
-                <span
-                  className="text-base transition-transform duration-300 group-hover:translate-x-1"
-                  style={{ color: d.accent }}
-                >
-                  →
-                </span>
-              </div>
+              <span className="display text-[1rem] text-white leading-snug">{d.name}</span>
             </div>
           </motion.button>
         ))}
