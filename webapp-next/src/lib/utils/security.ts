@@ -40,10 +40,11 @@ export function verifyRazorpayPaymentSignature({
  * rawBody MUST be the raw Buffer (before JSON.parse).
  */
 export function verifyRazorpayWebhookSignature(
-  rawBody:   Buffer | string,
-  signature: string,
+  rawBody:    Buffer | string,
+  signature:  string,
+  secretOverride?: string,
 ): boolean {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const secret = secretOverride ?? process.env.RAZORPAY_WEBHOOK_SECRET;
   if (!secret) throw new Error('RAZORPAY_WEBHOOK_SECRET is not set');
 
   const expected = crypto

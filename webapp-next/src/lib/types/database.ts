@@ -89,9 +89,10 @@ export interface CoffeeCustomer {
   company:             string | null;
   is_active:           boolean;
   last_login_at:       string | null;
-  razorpay_key_id:     string | null;
-  razorpay_key_secret: string | null;
-  created_at:          string;
+  razorpay_key_id:      string | null;
+  razorpay_key_secret:  string | null;
+  razorpay_webhook_secret: string | null;
+  created_at:           string;
   // password_hash is never returned to the application layer
 }
 

@@ -142,8 +142,9 @@ CREATE TABLE IF NOT EXISTS coffee_customers (
     company       TEXT,
     is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
     last_login_at       TIMESTAMPTZ,
-    razorpay_key_id     TEXT,        -- customer's own Razorpay key ID (rzp_live_… / rzp_test_…)
-    razorpay_key_secret TEXT,        -- customer's own Razorpay key secret (stored plaintext; encrypt at rest in prod)
+    razorpay_key_id      TEXT,        -- customer's own Razorpay key ID (rzp_live_… / rzp_test_…)
+    razorpay_key_secret  TEXT,        -- customer's own Razorpay key secret (stored plaintext; encrypt at rest in prod)
+    razorpay_webhook_secret TEXT,     -- webhook secret for /api/payment/webhook/[customerId]
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
