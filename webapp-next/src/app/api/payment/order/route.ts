@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   // ── Verify machine is active ────────────────────────────────────
   const { data: machine, error: mErr } = await supabaseAdmin
     .from('coffee_machines')
-    .select('id, status, is_free, price_coffee_paise, price_tea_paise, customer_id')
+    .select('id, status, is_free, price_coffee_paise, price_tea_paise, price_milk_paise, customer_id')
     .eq('id', machine_id)
     .single();
 
