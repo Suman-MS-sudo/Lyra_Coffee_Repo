@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
+import MachineOfflineOverlay from './MachineOfflineOverlay';
 import type { CoffeeMachine, DrinkCustomization, DrinkType } from '@/lib/types/database';
 import DrinkSelector from './DrinkSelector';
 import CustomizationPanel from './CustomizationPanel';
@@ -183,7 +184,7 @@ const DEFAULT_CUSTOMIZATION: DrinkCustomization = {
 export default function OrderFlow({
   machine,
 }: {
-  machine: Pick<CoffeeMachine, 'id' | 'name' | 'location' | 'is_free' | 'price_coffee_paise' | 'price_tea_paise'> & {
+  machine: Pick<CoffeeMachine, 'id' | 'name' | 'location' | 'is_free' | 'price_coffee_paise' | 'price_tea_paise' | 'price_milk_paise'> & {
     last_seen_at?: string | null;
   };
 }) {
@@ -192,8 +193,16 @@ export default function OrderFlow({
   const [order,      setOrder]      = useState<Partial<OrderState>>({
     customization: DEFAULT_CUSTOMIZATION,
   });
-  const [loading,    setLoading]    = useState(false);
+  const [loading,      setLoading]      = useState(false);
   const [showCupModal, setShowCupModal] = useState(false);
+  const [lastSeenAt,   setLastSeenAt]   = useState<string | null>(machine.last_seen_at ?? null);
+  const [mounted,      setMounted]      = useState(false);
+
+  const ONLINE_THRESHOLD_MS = 90_000;
+  const initialLastMs = machine.last_seen_at ? new Date(machine.last_seen_at).getTime() : 0;
+  const [isOnline, setIsOnline] = useState(initialLastMs > 0 && Date.now() - initialLastMs < ONLINE_THRESHOLD_MS);
+
+  useEffect(() => { setMounted(true); }, []);
 
   function navigate(to: Step, dir = 1) {
     setDirection(dir);
@@ -279,6 +288,8 @@ export default function OrderFlow({
             <MachineLiveStatus
               machineId={machine.id}
               initialLastSeenAt={machine.last_seen_at ?? null}
+              onStatusChange={setIsOnline}
+              onLastSeenAtChange={setLastSeenAt}
             />
           </div>        </div>
         <BrandMonogram size={44} />
@@ -336,9 +347,11 @@ export default function OrderFlow({
                 isFree={machine.is_free}
                 priceCoffeePaise={machine.price_coffee_paise}
                 priceTeaPaise={machine.price_tea_paise}
+                priceMilkPaise={machine.price_milk_paise}
                 onBack={() => navigate('customize', -1)}
                 onPay={() => setShowCupModal(true)}
                 loading={loading}
+                machineOnline={isOnline}
               />
             )}
             {step === 'success' && order.paymentId && (
@@ -360,6 +373,15 @@ export default function OrderFlow({
           <CupPlacementModal
             onConfirm={() => { setShowCupModal(false); handlePayment(); }}
             onCancel={() => setShowCupModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {mounted && !isOnline && (
+          <MachineOfflineOverlay
+            machineName={machine.name ?? 'Lyra Machine'}
+            lastSeenAt={lastSeenAt}
           />
         )}
       </AnimatePresence>

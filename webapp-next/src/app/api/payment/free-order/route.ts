@@ -28,16 +28,19 @@ export async function POST(req: NextRequest) {
   }
   const { machine_id, drink_type, customization } = parsed.data;
 
-  // ── Verify machine is active AND actually marked free ──────────
+  // ── Verify machine is active, online, and actually marked free ─
   const { data: machine, error: mErr } = await supabaseAdmin
     .from('coffee_machines')
-    .select('id, status, is_free')
+    .select('id, status, is_free, last_seen_at')
     .eq('id', machine_id)
     .single();
 
   if (mErr || !machine)            return apiError('Machine not found', 404);
   if (machine.status !== 'active') return apiError('Machine is not available', 409);
   if (!machine.is_free)            return apiError('This machine requires payment', 409);
+
+  const lastMs = machine.last_seen_at ? new Date(machine.last_seen_at).getTime() : 0;
+  if (Date.now() - lastMs > 90_000) return apiError('Machine is currently offline. Please try again in a moment.', 409);
 
   // ── Create order directly in `paid` state ──────────────────────
   const { data: dbOrder, error: dbErr } = await supabaseAdmin

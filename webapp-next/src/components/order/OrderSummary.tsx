@@ -14,9 +14,11 @@ interface Props {
   isFree:           boolean;
   priceCoffeePaise: number | null;
   priceTeaPaise:    number | null;
+  priceMilkPaise:   number | null;
   onBack:           () => void;
   onPay:            () => void;
   loading:          boolean;
+  machineOnline?:   boolean;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -28,9 +30,9 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function OrderSummary({ drink, customization, isFree, priceCoffeePaise, priceTeaPaise, onBack, onPay, loading }: Props) {
+export default function OrderSummary({ drink, customization, isFree, priceCoffeePaise, priceTeaPaise, priceMilkPaise, onBack, onPay, loading, machineOnline = true }: Props) {
   const price = getMachineDrinkPrice(
-    { is_free: isFree, price_coffee_paise: priceCoffeePaise, price_tea_paise: priceTeaPaise },
+    { is_free: isFree, price_coffee_paise: priceCoffeePaise, price_tea_paise: priceTeaPaise, price_milk_paise: priceMilkPaise },
     drink,
   );
 
@@ -82,9 +84,15 @@ export default function OrderSummary({ drink, customization, isFree, priceCoffee
         </div>
       )}
 
+      {!machineOnline && (
+        <p className="text-center text-red-400/80 text-xs mb-3">
+          Machine is offline — please wait for it to reconnect.
+        </p>
+      )}
+
       <button
         onClick={onPay}
-        disabled={loading}
+        disabled={loading || !machineOnline}
         className="w-full py-4 rounded-2xl bg-coffee-500 hover:bg-coffee-400
           disabled:opacity-50 disabled:cursor-not-allowed
           text-white font-semibold text-base transition-all duration-150

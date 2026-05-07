@@ -9,22 +9,18 @@ interface StatusResp {
   online:       boolean;
 }
 
-/**
- * Tiny polling chip that shows whether a coffee machine is
- * currently reachable. Polls /api/machine/[id]/status every 15s.
- *
- * Purely cosmetic — the customer order flow will still fail
- * gracefully if the machine is offline, but the visual cue saves
- * the buyer from initiating a payment they can't fulfil.
- */
 export default function MachineLiveStatus({
   machineId,
   initialLastSeenAt = null,
   className = '',
+  onStatusChange,
+  onLastSeenAtChange,
 }: {
   machineId:          string;
   initialLastSeenAt?: string | null;
   className?:         string;
+  onStatusChange?:      (online: boolean) => void;
+  onLastSeenAtChange?:  (v: string | null) => void;
 }) {
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(initialLastSeenAt);
   const [online,     setOnline]     = useState<boolean>(false);
@@ -57,6 +53,8 @@ export default function MachineLiveStatus({
         if (cancelled) return;
         setLastSeenAt(data.last_seen_at);
         setOnline(data.online);
+        onStatusChange?.(data.online);
+        onLastSeenAtChange?.(data.last_seen_at);
       } catch {
         // Network blip — keep the previous value rather than flickering offline.
       }

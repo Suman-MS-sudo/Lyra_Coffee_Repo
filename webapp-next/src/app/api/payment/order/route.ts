@@ -22,16 +22,19 @@ export async function POST(req: NextRequest) {
   }
   const { machine_id, drink_type, customization } = parsed.data;
 
-  // ── Verify machine is active ────────────────────────────────────
+  // ── Verify machine is active and online ────────────────────────
   const { data: machine, error: mErr } = await supabaseAdmin
     .from('coffee_machines')
-    .select('id, status, is_free, price_coffee_paise, price_tea_paise, price_milk_paise, customer_id')
+    .select('id, status, is_free, price_coffee_paise, price_tea_paise, price_milk_paise, customer_id, last_seen_at')
     .eq('id', machine_id)
     .single();
 
   if (mErr || !machine)             return apiError('Machine not found', 404);
   if (machine.status !== 'active')  return apiError('Machine is not available', 409);
   if (machine.is_free)              return apiError('This machine is free — use the free-order endpoint', 409);
+
+  const lastMs = machine.last_seen_at ? new Date(machine.last_seen_at).getTime() : 0;
+  if (Date.now() - lastMs > 90_000) return apiError('Machine is currently offline. Please try again in a moment.', 409);
 
   // ── Resolve Razorpay keys (customer-owned keys take precedence) ─
   let rzpKeyId     = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!;
