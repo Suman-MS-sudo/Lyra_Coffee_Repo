@@ -30,7 +30,6 @@ export default function CustomerLoginForm() {
       const { name } = await res.json();
       toast.success(`Welcome back, ${name}!`);
       router.push('/customer');
-      router.refresh();
     } catch {
       toast.error('Network error. Please try again.');
     } finally {

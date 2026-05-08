@@ -15,9 +15,19 @@ export async function middleware(req: NextRequest) {
 
   // ── Admin routes ──────────────────────────────────────────────
   if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-    // Allow login/logout unconditionally
+    // Redirect already-authenticated users away from the login page
+    if (pathname === '/admin/login') {
+      const token = req.cookies.get('admin_token')?.value;
+      if (token) {
+        try {
+          await verifyAdminToken(token);
+          return NextResponse.redirect(new URL('/admin', req.url));
+        } catch { /* expired — let them see the login page */ }
+      }
+      return NextResponse.next();
+    }
+    // Allow logout API unconditionally
     if (
-      pathname === '/admin/login' ||
       pathname === '/api/admin/auth/login' ||
       pathname === '/api/admin/auth/logout'
     ) {
@@ -47,9 +57,19 @@ export async function middleware(req: NextRequest) {
 
   // ── Customer routes ───────────────────────────────────────────
   if (pathname.startsWith('/customer') || pathname.startsWith('/api/customer')) {
-    // Allow login/logout unconditionally
+    // Redirect already-authenticated users away from the login page
+    if (pathname === '/customer/login') {
+      const token = req.cookies.get('customer_token')?.value;
+      if (token) {
+        try {
+          await verifyCustomerToken(token);
+          return NextResponse.redirect(new URL('/customer', req.url));
+        } catch { /* expired — let them see the login page */ }
+      }
+      return NextResponse.next();
+    }
+    // Allow logout API unconditionally
     if (
-      pathname === '/customer/login' ||
       pathname === '/api/customer/auth/login' ||
       pathname === '/api/customer/auth/logout'
     ) {

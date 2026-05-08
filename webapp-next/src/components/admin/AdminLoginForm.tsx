@@ -29,7 +29,6 @@ export default function AdminLoginForm() {
       const { name } = await res.json();
       toast.success(`Welcome back, ${name}!`);
       router.push('/admin');
-      router.refresh();
     } catch {
       toast.error('Network error. Please try again.');
     } finally {
