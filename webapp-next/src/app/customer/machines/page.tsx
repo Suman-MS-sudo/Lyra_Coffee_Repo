@@ -5,12 +5,12 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import type { CoffeeMachine } from '@/lib/types/database';
 import { getDrinkPrice } from '@/lib/utils/security';
 import MachinePricingEditor from '@/components/customer/MachinePricingEditor';
-import { MapPin, Wifi, WifiOff } from 'lucide-react';
+import { ExternalLink, MapPin, Wifi, WifiOff } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'My Machines' };
 
-const ONLINE_MS = 90_000;
+const ONLINE_MS = 3 * 60_000; // 3 minutes
 
 const STATUS_STYLES: Record<string, string> = {
   active:      'bg-green-500/15 text-green-400 border-green-500/20',
@@ -19,7 +19,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default async function CustomerMachinesPage() {
-  const token = (await cookies()).get('customer_token')?.value;
+  const token = cookies().get('customer_token')?.value;
   if (!token) redirect('/customer/login');
 
   let customerId: string | null = null;
@@ -108,6 +108,7 @@ export default async function CustomerMachinesPage() {
                   <th className="text-right px-5 py-3.5 font-medium">Orders 7d</th>
                   <th className="text-right px-5 py-3.5 font-medium">Revenue 7d</th>
                   <th className="text-left px-5 py-3.5 font-medium">Added</th>
+                  <th className="px-5 py-3.5 font-medium"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -174,6 +175,17 @@ export default async function CustomerMachinesPage() {
                       </td>
                       <td className="px-5 py-3.5 text-white/40 text-xs">
                         {new Date(machine.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <a
+                          href={`/?machine=${machine.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open machine page"
+                          className="p-2 rounded-xl text-white/30 hover:text-coffee-400 hover:bg-coffee-400/10 transition-colors inline-flex"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
                       </td>
                     </tr>
                   );

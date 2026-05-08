@@ -42,6 +42,12 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
   // Sync with server data after router.refresh()
   useEffect(() => { setMachines(initialMachines); }, [initialMachines]);
 
+  // Auto-refresh online status every 30 s
+  useEffect(() => {
+    const t = setInterval(() => startTransition(() => router.refresh()), 30_000);
+    return () => clearInterval(t);
+  }, [router]);
+
   // ── Add form state ──
   const [showAddForm, setShowAddForm] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -590,6 +596,15 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-end gap-2">
+                        <a
+                          href={`/?machine=${m.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open machine page"
+                          className="p-2 rounded-xl text-white/30 hover:text-coffee-400 hover:bg-coffee-400/10 transition-colors"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
                         <button
                           onClick={() => handleToggle(m)}
                           disabled={isPending}
