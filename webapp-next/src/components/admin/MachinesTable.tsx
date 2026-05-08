@@ -241,7 +241,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
       body: JSON.stringify(body),
     });
     if (!res.ok) { toast.error('Failed to update payment'); router.refresh(); }
-    else          { toast.success('Payment settings updated'); }
+    else          { toast.success('Payment settings updated'); router.refresh(); }
   };
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Coffee, Leaf, Milk, Loader2, Pencil, Save, X, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -29,6 +30,7 @@ export default function MachinePricingEditor({
   defaultTea,
   defaultMilk,
 }: Props) {
+  const router              = useRouter();
   const [open, setOpen]     = useState(false);
   const [free, setFree]     = useState(isFree);
   const [coffee, setCoffee] = useState<string>(paiseToRupees(priceCoffeePaise, defaultCoffee));
@@ -83,7 +85,7 @@ export default function MachinePricingEditor({
       setSavedCoffee(data.price_coffee_paise);
       setSavedTea(data.price_tea_paise);
       setSavedMilk(data.price_milk_paise);
-      startTx(() => setOpen(false));
+      startTx(() => { setOpen(false); router.refresh(); });
       toast.success(free ? 'Machine set to free' : 'Pricing updated');
     } catch (err) {
       toast.error((err as Error).message);

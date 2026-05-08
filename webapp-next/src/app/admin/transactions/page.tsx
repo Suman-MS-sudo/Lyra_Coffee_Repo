@@ -26,7 +26,7 @@ export default async function TransactionsPage() {
 
   return (
     <div>
-      <h1 className="text-xl sm:text-2xl font-bold text-white mb-6 lg:mb-8">Transactions</h1>
+      <h1 className="text-2xl font-bold text-white mb-8">Transactions</h1>
       <TransactionsTable orders={orders} />
     </div>
   );
