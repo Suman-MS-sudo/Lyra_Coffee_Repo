@@ -19,4 +19,11 @@ export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     persistSession:    false,
     detectSessionInUrl: false,
   },
+  global: {
+    // Force every Supabase HTTP request to bypass Next.js's data cache.
+    // Without this, Next.js 14 caches identical GET requests (e.g. SELECT
+    // queries) indefinitely, returning stale DB rows even when the table
+    // has been updated seconds ago.
+    fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
+  },
 });
