@@ -19,10 +19,11 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.res;
 
   // Every poll counts as a liveness ping.
-  await supabaseAdmin
+  const { error: pingErr } = await supabaseAdmin
     .from('coffee_machines')
     .update({ last_seen_at: new Date().toISOString() })
     .eq('id', auth.machineId);
+  if (pingErr) console.error('[machine/poll] last_seen_at update failed', pingErr);
 
   // ── Stuck-order recovery ─────────────────────────────────────
   // If a previous poll claimed an order (paid → dispensing) but the

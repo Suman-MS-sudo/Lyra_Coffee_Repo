@@ -47,20 +47,25 @@ export default function MachineLiveStatus({
     let cancelled = false;
     const fetchOnce = async () => {
       try {
-        const res = await fetch(`/api/machine/${machineId}/status`, { cache: 'no-store' });
-        if (!res.ok) return;
+        // ?t= busts Cloudflare edge cache — no-store alone is sometimes ignored for GET
+        const res = await fetch(`/api/machine/${machineId}/status?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) {
+          console.warn('[MachineLiveStatus] status API returned', res.status, res.statusText);
+          return;
+        }
         const data = (await res.json()) as StatusResp;
         if (cancelled) return;
         setLastSeenAt(data.last_seen_at);
         setOnline(data.online);
         onStatusChange?.(data.online);
         onLastSeenAtChange?.(data.last_seen_at);
-      } catch {
+      } catch (err) {
+        console.warn('[MachineLiveStatus] fetch error:', err);
         // Network blip — keep the previous value rather than flickering offline.
       }
     };
     fetchOnce();
-    const id = setInterval(fetchOnce, 15_000);
+    const id = setInterval(fetchOnce, 5_000);
     return () => { cancelled = true; clearInterval(id); };
   }, [machineId]);
 

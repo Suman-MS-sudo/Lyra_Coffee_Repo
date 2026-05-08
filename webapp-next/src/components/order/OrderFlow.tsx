@@ -198,7 +198,7 @@ export default function OrderFlow({
   const [lastSeenAt,   setLastSeenAt]   = useState<string | null>(machine.last_seen_at ?? null);
   const [mounted,      setMounted]      = useState(false);
 
-  const ONLINE_THRESHOLD_MS = 90_000;
+  const ONLINE_THRESHOLD_MS = 3 * 60_000; // 3 minutes
   const initialLastMs = machine.last_seen_at ? new Date(machine.last_seen_at).getTime() : 0;
   const [isOnline, setIsOnline] = useState(initialLastMs > 0 && Date.now() - initialLastMs < ONLINE_THRESHOLD_MS);
 
