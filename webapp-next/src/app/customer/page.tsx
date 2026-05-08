@@ -17,7 +17,7 @@ function paiseRound(n: number) { return `₹${Math.round(n / 100)}`; }
 
 function StatCard({ label, value, sub, icon: Icon, accent = 'text-coffee-400' }: {
   label: string; value: string; sub?: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: React.ComponentType<{ size?: number | string; className?: string }>;
   accent?: string;
 }) {
   return (
