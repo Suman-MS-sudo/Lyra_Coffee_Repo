@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { unstable_noStore as noStore } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { uuidSchema } from '@/lib/validators/schemas';
 import { apiError } from '@/lib/utils/security';
@@ -23,6 +24,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  noStore();
   const parsed = uuidSchema.safeParse(params.id);
   if (!parsed.success) return apiError('Invalid order ID', 400);
 

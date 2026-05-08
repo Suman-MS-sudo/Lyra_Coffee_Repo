@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { unstable_noStore as noStore } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { authenticateMachine } from '@/lib/utils/machine-auth';
 import { apiError } from '@/lib/utils/security';
@@ -15,6 +16,7 @@ export const dynamic = 'force-dynamic';
  * Auth: Authorization: Bearer <api_key>, X-Machine-Id: <uuid>
  */
 export async function GET(req: NextRequest) {
+  noStore();
   const auth = await authenticateMachine(req);
   if (!auth.ok) return auth.res;
 
