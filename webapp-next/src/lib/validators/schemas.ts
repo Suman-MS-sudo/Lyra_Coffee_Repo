@@ -62,6 +62,16 @@ export const createCustomerSchema = z.object({
 });
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
 
+// ── Admin: update customer ───────────────────────────────────────
+export const updateCustomerSchema = z.object({
+  name:      z.string().min(1).max(120).trim().optional(),
+  email:     z.string().email().max(255).optional(),
+  company:   z.string().max(120).trim().nullable().optional(),
+  is_active: z.boolean().optional(),
+  password:  z.string().min(8).max(128).optional(),
+});
+export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;
+
 // ── Admin: create machine ────────────────────────────────────────
 const pricePaise = z.number().int().min(0).max(100_000).nullable();
 const macIdSchema = z
