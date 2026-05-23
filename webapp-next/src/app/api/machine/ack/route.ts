@@ -35,10 +35,10 @@ export async function POST(req: NextRequest) {
   }
   const { order_id, status, error } = parsed.data;
 
-  // Verify the order belongs to this machine.
+  // Verify the order belongs to this machine and is in the expected state.
   const { data: row } = await supabaseAdmin
     .from('coffee_orders')
-    .select('id, machine_id')
+    .select('id, machine_id, status')
     .eq('id', order_id)
     .maybeSingle();
 
@@ -46,10 +46,29 @@ export async function POST(req: NextRequest) {
     return apiError('Order not found for this machine', 404);
   }
 
+  // Idempotent: already in a terminal state — return success without re-writing.
+  if (row.status === 'dispensed' || row.status === 'failed') {
+    return Response.json({ ok: true });
+  }
+
+  if (row.status !== 'dispensing') {
+    return apiError(`Cannot ACK order in "${row.status}" state`, 409);
+  }
+
   await supabaseAdmin
     .from('coffee_orders')
     .update({ status })
-    .eq('id', order_id);
+    .eq('id', order_id)
+    .eq('status', 'dispensing'); // guard against races
+
+  const { data: lastLog } = await supabaseAdmin
+    .from('coffee_dispense_log')
+    .select('attempt')
+    .eq('order_id', order_id)
+    .eq('machine_id', auth.machineId)
+    .order('attempt', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   await supabaseAdmin
     .from('coffee_dispense_log')
@@ -57,7 +76,7 @@ export async function POST(req: NextRequest) {
       order_id,
       machine_id:    auth.machineId,
       status:        status === 'dispensed' ? 'ack' : 'failed',
-      attempt:       1,
+      attempt:       lastLog?.attempt ?? 1,
       error_message: error ?? null,
     });
 

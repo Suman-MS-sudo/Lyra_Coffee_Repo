@@ -56,11 +56,19 @@ export async function GET(req: NextRequest) {
       .update({ updated_at: new Date().toISOString() })
       .eq('id', stuck.id);
 
+    const { data: lastLog } = await supabaseAdmin
+      .from('coffee_dispense_log')
+      .select('attempt')
+      .eq('order_id', stuck.id)
+      .order('attempt', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     await supabaseAdmin.from('coffee_dispense_log').insert({
       order_id:   stuck.id,
       machine_id: auth.machineId,
       status:     'sent',
-      attempt:    2,
+      attempt:    (lastLog?.attempt ?? 1) + 1,
       error_message: 'redelivered after stuck dispensing window',
     });
 

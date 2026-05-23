@@ -3,7 +3,9 @@ import { SignJWT, jwtVerify } from 'jose';
 const ALG = 'HS256';
 
 // ── Admin JWT ────────────────────────────────────────────────────
-const adminSecret = new TextEncoder().encode(process.env.ADMIN_JWT_SECRET ?? '');
+const adminSecretRaw = process.env.ADMIN_JWT_SECRET;
+if (!adminSecretRaw) throw new Error('[JWT] ADMIN_JWT_SECRET is not set');
+const adminSecret = new TextEncoder().encode(adminSecretRaw);
 const ADMIN_ISSUER = 'lyra-coffee-admin';
 
 export interface AdminJwtPayload {
@@ -27,9 +29,9 @@ export async function verifyAdminToken(token: string): Promise<AdminJwtPayload> 
 }
 
 // ── Customer JWT ─────────────────────────────────────────────────
-const customerSecret = new TextEncoder().encode(
-  process.env.CUSTOMER_JWT_SECRET ?? process.env.ADMIN_JWT_SECRET ?? ''
-);
+const customerSecretRaw = process.env.CUSTOMER_JWT_SECRET ?? process.env.ADMIN_JWT_SECRET;
+if (!customerSecretRaw) throw new Error('[JWT] CUSTOMER_JWT_SECRET or ADMIN_JWT_SECRET is not set');
+const customerSecret = new TextEncoder().encode(customerSecretRaw);
 const CUSTOMER_ISSUER = 'lyra-coffee-customer';
 
 export interface CustomerJwtPayload {

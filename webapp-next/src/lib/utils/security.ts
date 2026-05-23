@@ -104,6 +104,13 @@ export function checkRateLimit(key: string, maxReq = MAX_REQUESTS, windowMs = WI
   const entry = rateLimitStore.get(key);
 
   if (!entry || now > entry.resetAt) {
+    // Sweep expired entries when the store grows large to prevent memory leaks
+    // from one-time IPs (e.g. scanner sweeps) that are never seen again.
+    if (rateLimitStore.size > 5_000) {
+      rateLimitStore.forEach((v, k) => {
+        if (now > v.resetAt) rateLimitStore.delete(k);
+      });
+    }
     rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }

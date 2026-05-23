@@ -5,6 +5,8 @@ import { signCustomerToken } from '@/lib/utils/jwt';
 import { checkRateLimit, getClientIp, apiError } from '@/lib/utils/security';
 import crypto from 'crypto';
 
+const DUMMY_PASSWORD_HASH = crypto.createHash('sha256').update('__dummy__').digest('hex');
+
 export async function POST(req: NextRequest) {
   // ── Rate limit (5 attempts/min per IP) ─────────────────────────
   const ip = getClientIp(req);
@@ -36,7 +38,12 @@ export async function POST(req: NextRequest) {
     .digest('hex');
 
   if (!customer || !customer.is_active) {
-    crypto.timingSafeEqual(Buffer.from(passwordHash), Buffer.from(passwordHash));
+    try {
+      crypto.timingSafeEqual(
+        Buffer.from(passwordHash,        'hex'),
+        Buffer.from(DUMMY_PASSWORD_HASH, 'hex'),
+      );
+    } catch { /* ignore */ }
     return apiError('Invalid email or password', 401);
   }
 

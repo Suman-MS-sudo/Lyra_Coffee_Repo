@@ -5,6 +5,10 @@ import { signAdminToken } from '@/lib/utils/jwt';
 import { checkRateLimit, getClientIp, apiError } from '@/lib/utils/security';
 import crypto from 'crypto';
 
+// Pre-computed dummy hash for timing-safe comparison when user is not found.
+// Must use the same encoding ('hex') as the real comparison below.
+const DUMMY_PASSWORD_HASH = crypto.createHash('sha256').update('__dummy__').digest('hex');
+
 export async function POST(req: NextRequest) {
   // ── Rate limit (5 attempts/min per IP) ─────────────────────────
   const ip = getClientIp(req);
@@ -36,8 +40,13 @@ export async function POST(req: NextRequest) {
     .digest('hex');
 
   if (!admin || !admin.is_active) {
-    // Still compare to normalise timing
-    crypto.timingSafeEqual(Buffer.from(passwordHash), Buffer.from(passwordHash));
+    // Constant-time dummy comparison to normalise timing when the user doesn't exist.
+    try {
+      crypto.timingSafeEqual(
+        Buffer.from(passwordHash,       'hex'),
+        Buffer.from(DUMMY_PASSWORD_HASH, 'hex'),
+      );
+    } catch { /* ignore */ }
     return apiError('Invalid email or password', 401);
   }
 
