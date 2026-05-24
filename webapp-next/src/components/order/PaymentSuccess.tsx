@@ -806,6 +806,7 @@ export default function PaymentSuccess({
 }) {
   const [status,     setStatus]     = useState<LiveStatus>('paid');
   const [showRepeat, setShowRepeat] = useState(false);
+  const [countdown,  setCountdown]  = useState<number | null>(null);
 
   useEffect(() => {
     if (!orderId) return;
@@ -835,6 +836,17 @@ export default function PaymentSuccess({
     const t = setTimeout(() => setShowRepeat(true), 1200);
     return () => clearTimeout(t);
   }, [done]);
+
+  /* 30-second countdown to home after dismissing the brew popup */
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      window.location.href = window.location.origin + window.location.search;
+      return;
+    }
+    const t = setTimeout(() => setCountdown(c => (c ?? 1) - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
 
   /* Liquid fill — slow, continuous pour. We deliberately target a
    * high level even at `paid`, with a long linear transition, so the
@@ -934,13 +946,36 @@ export default function PaymentSuccess({
         <Stepper stage={stage} failed={failed} />
       </motion.div>
 
+      {/* 30-second home redirect countdown (shown after dismissing brew popup) */}
+      <AnimatePresence>
+        {countdown !== null && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mt-8 flex flex-col items-center gap-3"
+          >
+            <p className="text-white/40 text-sm">Returning to home in</p>
+            <div className="w-16 h-16 rounded-full border-2 border-coffee-400/40 flex items-center justify-center">
+              <span className="text-2xl font-bold text-coffee-300">{countdown}</span>
+            </div>
+            <button
+              onClick={() => { setCountdown(null); window.location.href = window.location.origin + window.location.search; }}
+              className="text-white/30 hover:text-white/60 text-xs transition-colors"
+            >
+              Go now
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Brew Complete popup */}
       <AnimatePresence>
         {showRepeat && onOrderMore && (
           <BrewCompletePopup
             drink={drink}
             onBrewMore={onOrderMore}
-            onClose={() => setShowRepeat(false)}
+            onClose={() => { setShowRepeat(false); setCountdown(30); }}
           />
         )}
       </AnimatePresence>
