@@ -52,6 +52,8 @@ apt-get install -y --no-install-recommends \
   avahi-daemon \
   xdotool \
   build-essential \
+  swig \
+  liblgpio-dev \
   xorg xserver-xorg-legacy openbox lightdm \
   x11-xserver-utils unclutter \
   2>/dev/null
