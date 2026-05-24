@@ -82,7 +82,24 @@ rsync -a --exclude='.git' --exclude='node_modules' --exclude='.next' --exclude='
 chown -R "${LYRA_USER}:${LYRA_USER}" /opt/lyra
 
 # =============================================================================
-# 3. Install npm dependencies and build Next.js
+# 3. Add swap space (Next.js build needs more than 2GB RAM on Pi 5)
+# =============================================================================
+SWAP_FILE="/swapfile"
+if [ ! -f "${SWAP_FILE}" ]; then
+  info "Creating 2GB swap file (needed for Next.js build)..."
+  fallocate -l 2G "${SWAP_FILE}"
+  chmod 600 "${SWAP_FILE}"
+  mkswap "${SWAP_FILE}"
+  swapon "${SWAP_FILE}"
+  echo "${SWAP_FILE} none swap sw 0 0" >> /etc/fstab
+  info "Swap enabled"
+else
+  swapon "${SWAP_FILE}" 2>/dev/null || true
+  info "Swap already exists"
+fi
+
+# =============================================================================
+# 4. Install npm dependencies and build Next.js
 # =============================================================================
 info "Installing npm dependencies (this builds better-sqlite3 from source — takes a few minutes)..."
 cd /opt/lyra/webapp-next
@@ -151,9 +168,9 @@ fi
 # =============================================================================
 # 7. Build Next.js
 # =============================================================================
-info "Building Next.js app..."
+info "Building Next.js app (this takes 5-10 min on Pi 5)..."
 cd /opt/lyra/webapp-next
-sudo -u "${LYRA_USER}" NODE_ENV=production npm run build 2>&1 | tail -30
+sudo -u "${LYRA_USER}" NODE_ENV=production NODE_OPTIONS="--max-old-space-size=1536" npm run build 2>&1 | tail -30
 info "Next.js build complete"
 
 # =============================================================================
