@@ -1,0 +1,6 @@
+# Force LF line endings for scripts that run on Linux (Pi)
+pi/*.sh    text eol=lf
+pi/*.py    text eol=lf
+pi/*.service text eol=lf
+pi/requirements.txt text eol=lf
+webapp-next/src/lib/db/*.sql text eol=lf
