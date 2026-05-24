@@ -36,11 +36,7 @@ fi
 # Disable screen blanking / screensaver
 xset s off -dpms 2>/dev/null || true
 
-# Launch Chromium in kiosk mode
-# --ozone-platform=wayland : use Wayland on Pi OS Bookworm
-# --kiosk                  : full-screen, no chrome
-# --noerrdialogs           : suppress crash dialogs
-# --disable-infobars       : no "Chrome is being controlled" bar
+# Launch Chromium in kiosk mode (X11 — works on Pi OS Lite + openbox)
 exec chromium-browser \
   --kiosk \
   --noerrdialogs \
@@ -48,7 +44,6 @@ exec chromium-browser \
   --disable-session-crashed-bubble \
   --disable-translate \
   --no-first-run \
-  --ozone-platform=wayland \
-  --enable-features=UseOzonePlatform \
+  --check-for-update-interval=31536000 \
   --autoplay-policy=no-user-gesture-required \
   "${URL}"

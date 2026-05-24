@@ -49,6 +49,8 @@ apt-get install -y --no-install-recommends \
   avahi-daemon \
   xdotool \
   build-essential \
+  xorg xserver-xorg-legacy openbox lightdm \
+  x11-xserver-utils unclutter \
   2>/dev/null
 
 # ── Node.js 20 LTS (via NodeSource) ─────────────────────────────
@@ -274,11 +276,29 @@ systemctl restart avahi-daemon
 info "Hostname set to 'lyra' → accessible as http://lyra.local:3000"
 
 # =============================================================================
-# 12. Auto-login and screen power settings
+# 12. Display: auto-login + minimal kiosk window manager (Lite OS compatible)
 # =============================================================================
-info "Configuring auto-login for user 'pi'..."
-raspi-config nonint do_boot_behaviour B4 2>/dev/null || \
-  systemctl set-default graphical.target
+info "Configuring auto-login and kiosk display..."
+
+# LightDM auto-login for user pi
+mkdir -p /etc/lightdm/lightdm.conf.d
+cat > /etc/lightdm/lightdm.conf.d/50-lyra-autologin.conf <<'EOF'
+[Seat:*]
+autologin-user=pi
+autologin-user-timeout=0
+user-session=openbox
+EOF
+
+# Openbox autostart — launches the kiosk script on login
+mkdir -p /home/pi/.config/openbox
+cat > /home/pi/.config/openbox/autostart <<'EOF'
+# Hide mouse cursor after 1 second of inactivity
+unclutter -idle 1 -root &
+
+# Launch Lyra kiosk
+/opt/lyra/pi/kiosk.sh &
+EOF
+chown -R pi:pi /home/pi/.config
 
 # Disable screen blank in X11
 mkdir -p /etc/X11/xorg.conf.d
@@ -290,6 +310,10 @@ Section "ServerFlags"
   Option "OffTime"     "0"
 EndSection
 EOF
+
+# Set graphical boot target
+systemctl set-default graphical.target
+systemctl enable lightdm
 
 # =============================================================================
 # Done
