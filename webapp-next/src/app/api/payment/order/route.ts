@@ -4,6 +4,18 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { createOrderSchema } from '@/lib/validators/schemas';
 import { getMachineDrinkPrice, checkRateLimit, getClientIp, apiError } from '@/lib/utils/security';
 
+async function isOnline(): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    await fetch('https://1.1.1.1', { method: 'HEAD', signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(timer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   // ── Rate limit (20 req/min per IP) ─────────────────────────────
   const ip = getClientIp(req);
@@ -35,6 +47,11 @@ export async function POST(req: NextRequest) {
 
   const lastMs = machine.last_seen_at ? new Date(machine.last_seen_at).getTime() : 0;
   if (Date.now() - lastMs > 90_000) return apiError('Machine is currently offline. Please try again in a moment.', 409);
+
+  // ── Offline guard — block paid orders when Pi has no internet ──
+  if (!await isOnline()) {
+    return apiError('No internet connection. Payments are unavailable while offline — please try again when connectivity is restored.', 503);
+  }
 
   // ── Resolve Razorpay keys (customer-owned keys take precedence) ─
   let rzpKeyId     = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!;

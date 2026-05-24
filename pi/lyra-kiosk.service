@@ -1,0 +1,19 @@
+[Unit]
+Description=Lyra Coffee Machine Kiosk Display
+After=graphical.target lyra-webapp.service
+Wants=graphical.target
+
+[Service]
+Type=simple
+User=pi
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+ExecStartPre=/bin/sleep 5
+ExecStart=/opt/lyra/pi/kiosk.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target

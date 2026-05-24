@@ -4,6 +4,8 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: ['localhost:3000', process.env.NEXT_PUBLIC_APP_URL ?? ''],
     },
+    // Required for better-sqlite3 (native Node addon) to load in Next.js API routes.
+    serverComponentsExternalPackages: ['better-sqlite3'],
   },
   images: {
     remotePatterns: [

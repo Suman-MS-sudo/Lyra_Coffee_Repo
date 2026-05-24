@@ -1,0 +1,18 @@
+[Unit]
+Description=Lyra Coffee Machine GPIO Controller
+After=network.target lyra-webapp.service
+Requires=lyra-webapp.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/lyra
+ExecStart=/usr/bin/python3 /opt/lyra/pi/machine_service.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=LYRA_SERVER_URL=http://localhost:3000
+
+[Install]
+WantedBy=multi-user.target
