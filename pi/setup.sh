@@ -54,6 +54,7 @@ apt-get install -y --no-install-recommends \
   build-essential \
   swig \
   liblgpio-dev \
+  python3-dev \
   xorg xserver-xorg-legacy openbox lightdm \
   x11-xserver-utils unclutter \
   2>/dev/null
