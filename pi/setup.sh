@@ -196,7 +196,7 @@ echo ""
 
 # Hash password with SHA-256 (matches the login route)
 PASS_HASH=$(echo -n "${ADMIN_PASS}" | sha256sum | awk '{print $1}')
-ADMIN_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+ADMIN_ID=$(cat /proc/sys/kernel/random/uuid)
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 sqlite3 "${DB_PATH}" <<SQL
@@ -233,7 +233,7 @@ if [ -z "${MACHINE_MAC}" ]; then
   read -rp "Enter MAC address (XX:XX:XX:XX:XX:XX): " MACHINE_MAC
 fi
 
-MACHINE_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+MACHINE_ID=$(cat /proc/sys/kernel/random/uuid)
 # Placeholder hash — will be replaced by /api/machine/identify on first Python service start
 PLACEHOLDER_KEY_HASH=$(echo -n "placeholder-${MACHINE_ID}" | sha256sum | awk '{print $1}')
 
