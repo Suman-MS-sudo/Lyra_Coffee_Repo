@@ -2,27 +2,22 @@
 # Lyra kiosk — opens the cloud ordering UI on the Pi's display.
 # Called by startx from ~/.bash_profile on tty1 auto-login.
 
-CLOUD_URL="https://brew.lyra-app.co.in"
-IDENTITY_FILE="/etc/lyra/machine.json"
+URL="https://brew.lyra-app.co.in/?machine=c78022d7-443a-4d81-a57b-4d55fd104415"
 
 # Disable screen blanking
 xset s off -dpms 2>/dev/null || true
 xset s noblank  2>/dev/null || true
 
-# Wait for network (up to 30 s)
-for i in $(seq 1 15); do
-  if curl -sf --max-time 2 "${CLOUD_URL}" > /dev/null 2>&1; then
+# Wait for network (up to 60 s)
+echo "[kiosk] waiting for network..."
+for i in $(seq 1 30); do
+  if curl -sf --max-time 2 "https://brew.lyra-app.co.in" > /dev/null 2>&1; then
+    echo "[kiosk] network up"
     break
   fi
   sleep 2
 done
 
-# Append machine ID if identity is known
-if [ -f "${IDENTITY_FILE}" ]; then
-  MACHINE_ID=$(python3 -c "import json; print(json.load(open('${IDENTITY_FILE}')).get('id',''))" 2>/dev/null || true)
-fi
-
-URL="${CLOUD_URL}${MACHINE_ID:+/?machine=${MACHINE_ID}}"
 echo "[kiosk] opening ${URL}"
 
 exec chromium-browser \
