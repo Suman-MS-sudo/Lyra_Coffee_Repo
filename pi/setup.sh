@@ -27,6 +27,10 @@ error() { echo -e "${RED}[error]${NC} $*"; exit 1; }
 # ── Must run as root ─────────────────────────────────────────────
 [ "$(id -u)" -eq 0 ] || error "Run this script as root: sudo bash pi/setup.sh"
 
+# Detect the real user who invoked sudo (not root)
+LYRA_USER="${SUDO_USER:-$(logname 2>/dev/null || echo pi)}"
+LYRA_HOME="/home/${LYRA_USER}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -72,14 +76,14 @@ mkdir -p /opt/lyra
 rsync -a --exclude='.git' --exclude='node_modules' --exclude='.next' --exclude='.pio' \
   "${REPO_DIR}/" /opt/lyra/
 
-chown -R pi:pi /opt/lyra
+chown -R "${LYRA_USER}:${LYRA_USER}" /opt/lyra
 
 # =============================================================================
 # 3. Install npm dependencies and build Next.js
 # =============================================================================
 info "Installing npm dependencies (this builds better-sqlite3 from source — takes a few minutes)..."
 cd /opt/lyra/webapp-next
-sudo -u pi npm install --prefer-offline 2>&1 | tail -20
+sudo -u "${LYRA_USER}" npm install --prefer-offline 2>&1 | tail -20
 
 # =============================================================================
 # 4. Python virtual environment + dependencies
@@ -98,7 +102,7 @@ sed -i 's|/usr/bin/python3|/opt/lyra/pi/.venv/bin/python3|g' /opt/lyra/pi/lyra-m
 # =============================================================================
 info "Creating database directory..."
 mkdir -p /var/lib/lyra
-chown pi:pi /var/lib/lyra
+chown "${LYRA_USER}:${LYRA_USER}" /var/lib/lyra
 
 # =============================================================================
 # 6. Write .env.local
@@ -137,7 +141,7 @@ NODE_ENV=production
 # NEXT_PUBLIC_SUPABASE_URL=
 # SUPABASE_SERVICE_ROLE_KEY=
 EOF
-  chown pi:pi "${ENV_FILE}"
+  chown "${LYRA_USER}:${LYRA_USER}" "${ENV_FILE}"
   info ".env.local written (admin JWT and machine secrets are auto-generated)"
 fi
 
@@ -146,7 +150,7 @@ fi
 # =============================================================================
 info "Building Next.js app..."
 cd /opt/lyra/webapp-next
-sudo -u pi NODE_ENV=production npm run build 2>&1 | tail -30
+sudo -u "${LYRA_USER}" NODE_ENV=production npm run build 2>&1 | tail -30
 info "Next.js build complete"
 
 # =============================================================================
@@ -242,7 +246,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
+User=${LYRA_USER}
 WorkingDirectory=/opt/lyra/webapp-next
 ExecStart=$(which node) /opt/lyra/webapp-next/node_modules/.bin/next start -p 3000
 Restart=always
@@ -284,23 +288,23 @@ info "Configuring auto-login and kiosk display..."
 
 # LightDM auto-login for user pi
 mkdir -p /etc/lightdm/lightdm.conf.d
-cat > /etc/lightdm/lightdm.conf.d/50-lyra-autologin.conf <<'EOF'
+cat > /etc/lightdm/lightdm.conf.d/50-lyra-autologin.conf <<EOF
 [Seat:*]
-autologin-user=pi
+autologin-user=${LYRA_USER}
 autologin-user-timeout=0
 user-session=openbox
 EOF
 
 # Openbox autostart — launches the kiosk script on login
-mkdir -p /home/pi/.config/openbox
-cat > /home/pi/.config/openbox/autostart <<'EOF'
+mkdir -p "${LYRA_HOME}/.config/openbox"
+cat > "${LYRA_HOME}/.config/openbox/autostart" <<'EOF'
 # Hide mouse cursor after 1 second of inactivity
 unclutter -idle 1 -root &
 
 # Launch Lyra kiosk
 /opt/lyra/pi/kiosk.sh &
 EOF
-chown -R pi:pi /home/pi/.config
+chown -R "${LYRA_USER}:${LYRA_USER}" "${LYRA_HOME}/.config"
 
 # Disable screen blank in X11
 mkdir -p /etc/X11/xorg.conf.d
