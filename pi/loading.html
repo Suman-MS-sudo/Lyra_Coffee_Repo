@@ -114,21 +114,28 @@
   const APP_URL = 'https://brew.lyra-app.co.in/?machine=c78022d7-443a-4d81-a57b-4d55fd104415';
   const statusEl = document.getElementById('status');
 
-  async function check() {
-    try {
-      const r = await fetch(APP_URL, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(4000) });
-      if (r.ok || r.status < 500) {
-        statusEl.textContent = 'Loading…';
-        window.location.href = APP_URL;
-        return;
-      }
-    } catch {}
-    statusEl.textContent = 'Waiting for network…';
-    setTimeout(check, 3000);
+  function goToApp() {
+    statusEl.textContent = 'Loading…';
+    window.location.href = APP_URL;
   }
 
-  // Start checking after 1s
-  setTimeout(check, 1000);
+  async function check() {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000);
+      const r = await fetch('https://brew.lyra-app.co.in/', { method: 'HEAD', cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(timer);
+      if (r.status < 500) { goToApp(); return; }
+    } catch {}
+    statusEl.textContent = 'Waiting for network…';
+    setTimeout(check, 2000);
+  }
+
+  // Always redirect after 30 seconds regardless of network check
+  setTimeout(goToApp, 30000);
+
+  // Start checking after 3s
+  setTimeout(check, 3000);
 </script>
 </body>
 </html>
