@@ -55,8 +55,8 @@ apt-get install -y --no-install-recommends \
   swig \
   liblgpio-dev \
   python3-dev \
-  xorg xserver-xorg-legacy openbox lightdm \
-  x11-xserver-utils unclutter \
+  xorg xserver-xorg-legacy openbox \
+  x11-xserver-utils unclutter xinit \
   2>/dev/null
 
 apt-get install -y --no-install-recommends chromium
@@ -305,31 +305,34 @@ systemctl restart avahi-daemon
 info "Hostname set to 'lyra' → accessible as http://lyra.local:3000"
 
 # =============================================================================
-# 12. Display: auto-login + minimal kiosk window manager (Lite OS compatible)
+# 12. Display: console autologin + startx kiosk (no LightDM needed)
 # =============================================================================
 info "Configuring auto-login and kiosk display..."
 
-# LightDM auto-login for user pi
-mkdir -p /etc/lightdm/lightdm.conf.d
-cat > /etc/lightdm/lightdm.conf.d/50-lyra-autologin.conf <<EOF
-[Seat:*]
-autologin-user=${LYRA_USER}
-autologin-user-timeout=0
-user-session=openbox
+# Console autologin on tty1 — no display manager required
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${LYRA_USER} --noclear %I \$TERM
 EOF
 
-# Openbox autostart — launches the kiosk script on login
-mkdir -p "${LYRA_HOME}/.config/openbox"
-cat > "${LYRA_HOME}/.config/openbox/autostart" <<'EOF'
-# Hide mouse cursor after 1 second of inactivity
-unclutter -idle 1 -root &
-
-# Launch Lyra kiosk
-/opt/lyra/pi/kiosk.sh &
+# On login to tty1, start X automatically
+cat > "${LYRA_HOME}/.bash_profile" <<'EOF'
+# Auto-start kiosk on tty1
+if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+  exec startx /opt/lyra/pi/kiosk.sh -- :0 -nocursor 2>/tmp/kiosk-x11.log
+fi
 EOF
-chown -R "${LYRA_USER}:${LYRA_USER}" "${LYRA_HOME}/.config"
+chown "${LYRA_USER}:${LYRA_USER}" "${LYRA_HOME}/.bash_profile"
 
-# Disable screen blank in X11
+# Force HDMI output even if display not detected at boot
+BOOT_CONFIG="/boot/firmware/config.txt"
+if [ -f "${BOOT_CONFIG}" ]; then
+  grep -q "hdmi_force_hotplug" "${BOOT_CONFIG}" || echo "hdmi_force_hotplug=1" >> "${BOOT_CONFIG}"
+fi
+
+# Disable screen blanking in X11
 mkdir -p /etc/X11/xorg.conf.d
 cat > /etc/X11/xorg.conf.d/10-no-blank.conf <<'EOF'
 Section "ServerFlags"
@@ -340,9 +343,9 @@ Section "ServerFlags"
 EndSection
 EOF
 
-# Set graphical boot target
-systemctl set-default graphical.target
-systemctl enable lightdm
+# Boot to multi-user (text) — startx handles the display, no graphical.target needed
+systemctl set-default multi-user.target
+systemctl disable lightdm 2>/dev/null || true
 
 # =============================================================================
 # Done

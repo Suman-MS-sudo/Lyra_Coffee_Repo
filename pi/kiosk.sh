@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# Lyra kiosk launcher — runs on the Pi 5's 7" HDMI display.
-# Reads the machine UUID from /etc/lyra/machine.json (set after first identify).
-# Falls back to the landing page if identity is not yet provisioned.
-
-set -euo pipefail
+# Lyra kiosk launcher — called by startx on tty1 auto-login.
+# No window manager needed; Chromium runs directly on bare X.
 
 WEBAPP_URL="http://localhost:3000"
 IDENTITY_FILE="/etc/lyra/machine.json"
 
-# Wait for the webapp to respond (up to 60 s)
+# Disable screen blanking
+xset s off -dpms 2>/dev/null || true
+xset s noblank 2>/dev/null || true
+
+# Wait for the webapp to respond (up to 120 s)
 echo "[kiosk] waiting for webapp..."
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
   if curl -sf --max-time 2 "${WEBAPP_URL}" > /dev/null 2>&1; then
     echo "[kiosk] webapp is up"
     break
@@ -18,25 +19,22 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-# Resolve machine URL
+# Resolve machine URL from identity file
 if [ -f "${IDENTITY_FILE}" ]; then
-  MACHINE_ID=$(python3 -c "import json,sys; d=json.load(open('${IDENTITY_FILE}')); print(d.get('id',''))" 2>/dev/null || true)
+  MACHINE_ID=$(python3 -c "import json; d=json.load(open('${IDENTITY_FILE}')); print(d.get('id',''))" 2>/dev/null || true)
 else
   MACHINE_ID=""
 fi
 
 if [ -n "${MACHINE_ID}" ]; then
   URL="${WEBAPP_URL}/?machine=${MACHINE_ID}"
-  echo "[kiosk] navigating to ${URL}"
 else
   URL="${WEBAPP_URL}"
-  echo "[kiosk] no machine identity yet — showing landing page (${URL})"
 fi
 
-# Disable screen blanking / screensaver
-xset s off -dpms 2>/dev/null || true
+echo "[kiosk] opening ${URL}"
 
-# Launch Chromium in kiosk mode (X11 — works on Pi OS Lite + openbox)
+# Launch Chromium in kiosk mode on bare X (no window manager)
 exec chromium-browser \
   --kiosk \
   --noerrdialogs \
@@ -46,4 +44,5 @@ exec chromium-browser \
   --no-first-run \
   --check-for-update-interval=31536000 \
   --autoplay-policy=no-user-gesture-required \
+  --display=:0 \
   "${URL}"
