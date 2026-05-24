@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lyra</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Ambient glow */
+  .glow {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(60% 50% at 50% 30%, rgba(232,181,71,0.18), transparent 60%),
+      radial-gradient(40% 35% at 50% 80%, rgba(212,162,74,0.10), transparent 70%);
+    pointer-events: none;
+  }
+
+  .logo-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    animation: fadeIn 0.8s ease forwards;
+  }
+
+  /* Cup SVG */
+  .cup-svg { width: 72px; height: 72px; }
+
+  .brand {
+    font-size: 2.4rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #e8b547;
+  }
+
+  .tagline {
+    font-size: 0.75rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+    margin-top: -12px;
+  }
+
+  /* Spinner */
+  .spinner {
+    margin-top: 48px;
+    width: 32px;
+    height: 32px;
+    border: 2px solid rgba(232,181,71,0.2);
+    border-top-color: #e8b547;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .status {
+    margin-top: 16px;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.2);
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<div class="logo-wrap">
+  <!-- Coffee cup SVG -->
+  <svg class="cup-svg" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="14" y="28" width="36" height="30" rx="4" fill="rgba(232,181,71,0.15)" stroke="#e8b547" stroke-width="1.5"/>
+    <path d="M50 34 Q60 34 60 42 Q60 50 50 50" stroke="#e8b547" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <rect x="20" y="58" width="32" height="3" rx="1.5" fill="rgba(232,181,71,0.3)"/>
+    <path d="M28 22 Q30 16 32 22" stroke="#e8b547" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M36 20 Q38 14 40 20" stroke="#e8b547" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <!-- liquid fill -->
+    <rect x="16" y="46" width="32" height="10" rx="0 0 3 3" fill="rgba(232,181,71,0.25)">
+      <animate attributeName="y" values="54;46;54" dur="3s" repeatCount="indefinite"/>
+      <animate attributeName="height" values="2;10;2" dur="3s" repeatCount="indefinite"/>
+    </rect>
+  </svg>
+
+  <div class="brand">Lyra</div>
+  <div class="tagline">Coffee, your way</div>
+
+  <div class="spinner"></div>
+  <div class="status" id="status">Connecting…</div>
+</div>
+
+<script>
+  const APP_URL = 'https://brew.lyra-app.co.in/?machine=c78022d7-443a-4d81-a57b-4d55fd104415';
+  const statusEl = document.getElementById('status');
+
+  async function check() {
+    try {
+      const r = await fetch(APP_URL, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(4000) });
+      if (r.ok || r.status < 500) {
+        statusEl.textContent = 'Loading…';
+        window.location.href = APP_URL;
+        return;
+      }
+    } catch {}
+    statusEl.textContent = 'Waiting for network…';
+    setTimeout(check, 3000);
+  }
+
+  // Start checking after 1s
+  setTimeout(check, 1000);
+</script>
+</body>
+</html>

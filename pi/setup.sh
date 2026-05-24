@@ -67,9 +67,14 @@ info "Installing pi scripts to /opt/lyra/pi..."
 mkdir -p /opt/lyra/pi
 cp "${SCRIPT_DIR}/machine_service.py" /opt/lyra/pi/
 cp "${SCRIPT_DIR}/kiosk.sh"          /opt/lyra/pi/
+cp "${SCRIPT_DIR}/loading.html"      /opt/lyra/pi/
 cp "${SCRIPT_DIR}/lyra-machine.service" /opt/lyra/pi/
 chmod +x /opt/lyra/pi/kiosk.sh /opt/lyra/pi/machine_service.py
 chown -R "${LYRA_USER}:${LYRA_USER}" /opt/lyra
+
+# Disable Raspberry Pi welcome wizard
+rm -f /etc/xdg/autostart/piwiz.desktop
+rm -f /etc/xdg/autostart/rpi-first-run.desktop
 
 # =============================================================================
 # 4. GPIO machine service (talks to cloud API)
