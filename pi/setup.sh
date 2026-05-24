@@ -48,7 +48,7 @@ apt-get update -qq
 info "Installing system packages..."
 apt-get install -y --no-install-recommends \
   curl ca-certificates avahi-daemon \
-  cage \
+  cage seatd \
   chromium \
   python3 \
   2>/dev/null
@@ -56,8 +56,9 @@ apt-get install -y --no-install-recommends \
 # Chromium binary name varies — normalise to chromium-browser
 ln -sf /usr/bin/chromium /usr/local/bin/chromium-browser 2>/dev/null || true
 
-# Allow suman to use the GPU/input devices for Wayland
-usermod -aG video,input,render "${LYRA_USER}" 2>/dev/null || true
+# Allow suman to use GPU/input/seat devices for Wayland
+usermod -aG video,input,render,_seatd "${LYRA_USER}" 2>/dev/null || true
+systemctl enable seatd
 
 # =============================================================================
 # 3. Copy pi/ scripts to /opt/lyra/pi
@@ -116,7 +117,7 @@ EOF
 cat > "${LYRA_HOME}/.bash_profile" <<'PROFILE'
 if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
   URL="https://brew.lyra-app.co.in/?machine=c78022d7-443a-4d81-a57b-4d55fd104415"
-  export LIBSEAT_BACKEND=noop
+  export LIBSEAT_BACKEND=seatd
   export WLR_DRM_DEVICES=/dev/dri/card1
   exec cage -- chromium-browser \
     --kiosk \
