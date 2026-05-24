@@ -45,13 +45,21 @@ apt-get install -y --no-install-recommends \
   git curl wget ca-certificates gnupg \
   python3 python3-pip python3-venv \
   sqlite3 libsqlite3-dev \
-  chromium-browser \
   avahi-daemon \
   xdotool \
   build-essential \
   xorg xserver-xorg-legacy openbox lightdm \
   x11-xserver-utils unclutter \
   2>/dev/null
+
+# chromium package name differs by OS version
+if apt-cache show chromium-browser &>/dev/null; then
+  apt-get install -y --no-install-recommends chromium-browser
+else
+  apt-get install -y --no-install-recommends chromium
+  # create alias so kiosk.sh works with either name
+  ln -sf /usr/bin/chromium /usr/local/bin/chromium-browser 2>/dev/null || true
+fi
 
 # ── Node.js 20 LTS (via NodeSource) ─────────────────────────────
 if ! command -v node &>/dev/null || [[ "$(node --version)" != v20* ]]; then
