@@ -106,11 +106,14 @@ cd /opt/lyra/webapp-next
 sudo -u "${LYRA_USER}" npm install --prefer-offline 2>&1 | tail -20
 
 # =============================================================================
-# 4. Python dependencies (system-wide — dedicated machine, no venv needed)
+# 4. Python dependencies (via apt — avoids pip memory pressure on 2GB Pi)
 # =============================================================================
-info "Installing Python dependencies system-wide..."
-pip3 install --quiet --break-system-packages --upgrade pip
-pip3 install --quiet --break-system-packages -r /opt/lyra/pi/requirements.txt
+info "Installing Python dependencies via apt..."
+apt-get install -y --no-install-recommends \
+  python3-gpiozero \
+  python3-lgpio \
+  python3-requests \
+  2>/dev/null
 info "Python deps installed"
 
 # =============================================================================
