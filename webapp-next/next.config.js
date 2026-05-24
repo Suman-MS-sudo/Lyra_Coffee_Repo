@@ -7,6 +7,8 @@ const nextConfig = {
     // Required for better-sqlite3 (native Node addon) to load in Next.js API routes.
     serverComponentsExternalPackages: ['better-sqlite3'],
   },
+  // Disable SWC minification — use terser instead, which is more stable on ARM64
+  swcMinify: false,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },

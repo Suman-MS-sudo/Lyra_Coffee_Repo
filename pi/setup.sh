@@ -168,10 +168,14 @@ fi
 # =============================================================================
 # 7. Build Next.js
 # =============================================================================
-info "Building Next.js app (this takes 5-10 min on Pi 5)..."
-cd /opt/lyra/webapp-next
-sudo -u "${LYRA_USER}" NODE_ENV=production NODE_OPTIONS="--max-old-space-size=1536" npm run build 2>&1 | tail -30
-info "Next.js build complete"
+if [ -d "/opt/lyra/webapp-next/.next" ]; then
+  info "Next.js already built (.next folder present) — skipping build"
+else
+  info "Building Next.js app (this takes 5-10 min on Pi 5)..."
+  cd /opt/lyra/webapp-next
+  sudo -u "${LYRA_USER}" NODE_ENV=production NODE_OPTIONS="--max-old-space-size=1536" npm run build 2>&1 | tail -30
+  info "Next.js build complete"
+fi
 
 # =============================================================================
 # 8. Seed initial admin user in SQLite
