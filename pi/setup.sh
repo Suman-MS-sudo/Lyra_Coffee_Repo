@@ -116,6 +116,8 @@ EOF
 cat > "${LYRA_HOME}/.bash_profile" <<'PROFILE'
 if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
   URL="https://brew.lyra-app.co.in/?machine=c78022d7-443a-4d81-a57b-4d55fd104415"
+  export LIBSEAT_BACKEND=noop
+  export WLR_DRM_DEVICES=/dev/dri/card1
   exec cage -- chromium-browser \
     --kiosk \
     --noerrdialogs \
