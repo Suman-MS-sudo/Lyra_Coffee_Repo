@@ -121,6 +121,8 @@ if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     --noerrdialogs \
     --disable-infobars \
     --no-first-run \
+    --no-sandbox \
+    --disable-dev-shm-usage \
     --check-for-update-interval=31536000 \
     --ozone-platform=wayland \
     "$URL" 2>/tmp/kiosk.log
