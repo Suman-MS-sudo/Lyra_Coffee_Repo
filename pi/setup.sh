@@ -48,14 +48,16 @@ apt-get update -qq
 info "Installing system packages..."
 apt-get install -y --no-install-recommends \
   curl ca-certificates avahi-daemon \
-  xorg xserver-xorg-legacy openbox xinit \
-  x11-xserver-utils unclutter \
+  cage \
   chromium \
-  python3 python3-gpiozero python3-lgpio python3-requests \
+  python3 \
   2>/dev/null
 
 # Chromium binary name varies — normalise to chromium-browser
 ln -sf /usr/bin/chromium /usr/local/bin/chromium-browser 2>/dev/null || true
+
+# Allow suman to use the GPU/input devices for Wayland
+usermod -aG video,input,render "${LYRA_USER}" 2>/dev/null || true
 
 # =============================================================================
 # 3. Copy pi/ scripts to /opt/lyra/pi
@@ -98,7 +100,7 @@ systemctl enable lyra-machine.service
 info "lyra-machine service enabled"
 
 # =============================================================================
-# 5. Console autologin + startx kiosk (no display manager needed)
+# 5. Console autologin + cage kiosk (Wayland — Pi 5 native)
 # =============================================================================
 info "Configuring kiosk display..."
 
@@ -110,31 +112,23 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin ${LYRA_USER} --noclear %I \$TERM
 EOF
 
-# On tty1 login → start X → kiosk
+# On tty1 login → launch cage (Wayland kiosk) → Chromium
 cat > "${LYRA_HOME}/.bash_profile" <<'PROFILE'
-if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-  exec startx /opt/lyra/pi/kiosk.sh -- :0 -nocursor 2>/tmp/kiosk-x11.log
+if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+  URL="https://brew.lyra-app.co.in/?machine=c78022d7-443a-4d81-a57b-4d55fd104415"
+  exec cage -- chromium-browser \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-first-run \
+    --check-for-update-interval=31536000 \
+    --ozone-platform=wayland \
+    "$URL" 2>/tmp/kiosk.log
 fi
 PROFILE
 chown "${LYRA_USER}:${LYRA_USER}" "${LYRA_HOME}/.bash_profile"
 
-# Prevent X from blanking the screen
-mkdir -p /etc/X11/xorg.conf.d
-cat > /etc/X11/xorg.conf.d/10-no-blank.conf <<'EOF'
-Section "ServerFlags"
-  Option "BlankTime"   "0"
-  Option "StandbyTime" "0"
-  Option "SuspendTime" "0"
-  Option "OffTime"     "0"
-EndSection
-EOF
-
-# Force HDMI output even if display not detected at boot
-BOOT_CONFIG="/boot/firmware/config.txt"
-[ -f "${BOOT_CONFIG}" ] && grep -q "hdmi_force_hotplug" "${BOOT_CONFIG}" \
-  || echo "hdmi_force_hotplug=1" >> "${BOOT_CONFIG}"
-
-# Boot to text (multi-user) — startx handles the display
+# Boot to text (multi-user) — cage handles the display
 systemctl set-default multi-user.target
 systemctl disable lightdm 2>/dev/null || true
 
