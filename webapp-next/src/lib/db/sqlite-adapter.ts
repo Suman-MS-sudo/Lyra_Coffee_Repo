@@ -128,9 +128,9 @@ function parseRelationalSelect(cols: string): {
     plainCols.push(...before);
 
     joins.push({
-      table:    match[1],
-      alias:    match[1],
-      cols:     match[3].split(',').map(c => c.trim()),
+      table:    match[1]!,
+      alias:    match[1]!,
+      cols:     match[3]!.split(',').map(c => c.trim()),
       required: !!match[2], // !inner present → INNER JOIN
     });
     lastIndex = match.index + match[0].length;
@@ -487,7 +487,7 @@ class SQLiteBuilder {
 
   // ── DELETE ────────────────────────────────────────────────────
   private _doDelete(): QueryResult {
-    if (this._inWhere.length > 0 && this._inWhere[0][1].length === 0) {
+    if (this._inWhere.length > 0 && this._inWhere[0]![1].length === 0) {
       return { data: null, error: null }; // empty IN list — skip
     }
     const [whereClause, params] = buildWhere(this._where, this._inWhere);

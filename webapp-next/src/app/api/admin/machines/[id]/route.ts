@@ -85,7 +85,7 @@ export async function DELETE(
       .from('coffee_orders')
       .select('id')
       .eq('machine_id', machineId);
-    const orderIds = (orderRows ?? []).map(r => r.id);
+    const orderIds = (orderRows ?? []).map((r: { id: string }) => r.id);
 
     if (orderIds.length > 0) {
       const { error: payErr } = await supabaseAdmin
