@@ -106,16 +106,12 @@ cd /opt/lyra/webapp-next
 sudo -u "${LYRA_USER}" npm install --prefer-offline 2>&1 | tail -20
 
 # =============================================================================
-# 4. Python virtual environment + dependencies
+# 4. Python dependencies (system-wide — dedicated machine, no venv needed)
 # =============================================================================
-info "Setting up Python virtual environment..."
-python3 -m venv /opt/lyra/pi/.venv
-/opt/lyra/pi/.venv/bin/pip install --quiet --upgrade pip
-/opt/lyra/pi/.venv/bin/pip install --quiet -r /opt/lyra/pi/requirements.txt
+info "Installing Python dependencies system-wide..."
+pip3 install --quiet --break-system-packages --upgrade pip
+pip3 install --quiet --break-system-packages -r /opt/lyra/pi/requirements.txt
 info "Python deps installed"
-
-# Update the service ExecStart to use the venv Python
-sed -i 's|/usr/bin/python3|/opt/lyra/pi/.venv/bin/python3|g' /opt/lyra/pi/lyra-machine.service
 
 # =============================================================================
 # 5. Database directory
