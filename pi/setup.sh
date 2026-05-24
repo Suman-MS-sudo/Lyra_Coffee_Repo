@@ -1,315 +1,108 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Lyra Coffee Machine — Raspberry Pi 5 Setup Script
-#  Run as root on a fresh Pi OS Bookworm (64-bit) install.
+#  Run as root on a fresh Pi OS Lite Bookworm (64-bit) install.
 #
 #  What this script does:
-#    1. Installs system packages (Node.js 20, Python 3, SQLite, Chromium, git)
-#    2. Copies the project to /opt/lyra
-#    3. Installs npm dependencies (including building better-sqlite3 native addon)
-#    4. Installs Python dependencies (gpiozero, lgpio, requests)
-#    5. Creates the DB directory and seeds an initial admin user
-#    6. Writes .env.local for the webapp
-#    7. Builds the Next.js app
-#    8. Installs and enables systemd services
-#    9. Configures auto-login and kiosk display
-#   10. Enables mDNS hostname (lyra.local)
+#    1. Installs system packages (Chromium, X11, Python GPIO libs)
+#    2. Copies the pi/ folder to /opt/lyra/pi
+#    3. Installs Python GPIO dependencies via apt
+#    4. Installs and enables the GPIO machine service
+#    5. Configures console autologin + startx kiosk
+#    6. Enables mDNS hostname (lyra.local)
+#
+#  The Next.js webapp runs in the CLOUD at https://brew.lyra-app.co.in
+#  The Pi is a pure display + GPIO device — no local webapp, no database.
 # =============================================================================
 
 set -euo pipefail
 
-# ── Colour helpers ───────────────────────────────────────────────
 RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[1;33m'; NC='\033[0m'
 info()  { echo -e "${GRN}[setup]${NC} $*"; }
 warn()  { echo -e "${YLW}[warn] ${NC} $*"; }
 error() { echo -e "${RED}[error]${NC} $*"; exit 1; }
 
-# ── Must run as root ─────────────────────────────────────────────
-[ "$(id -u)" -eq 0 ] || error "Run this script as root: sudo bash pi/setup.sh"
+[ "$(id -u)" -eq 0 ] || error "Run as root: sudo bash pi/setup.sh"
 
-# Detect the real user who invoked sudo (not root)
 LYRA_USER="${SUDO_USER:-$(logname 2>/dev/null || echo pi)}"
 LYRA_HOME="/home/${LYRA_USER}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-info "Lyra Pi 5 Setup"
-info "Repo   : ${REPO_DIR}"
-info "Install: /opt/lyra"
+info "Lyra Pi 5 Setup (cloud kiosk mode)"
+info "User: ${LYRA_USER}"
 
 # =============================================================================
-# 1. System packages
+# 1. Fix /etc/hosts so sudo doesn't warn about hostname
+# =============================================================================
+HOSTNAME_NOW=$(hostname)
+grep -q "${HOSTNAME_NOW}" /etc/hosts || echo "127.0.1.1 ${HOSTNAME_NOW}" >> /etc/hosts
+
+# =============================================================================
+# 2. System packages
 # =============================================================================
 info "Updating package lists..."
 apt-get update -qq
 
 info "Installing system packages..."
 apt-get install -y --no-install-recommends \
-  git curl wget ca-certificates gnupg \
-  python3 python3-pip python3-venv \
-  sqlite3 libsqlite3-dev \
-  avahi-daemon \
-  xdotool \
-  build-essential \
-  swig \
-  liblgpio-dev \
-  python3-dev \
-  xorg xserver-xorg-legacy openbox \
-  x11-xserver-utils unclutter xinit \
+  curl ca-certificates avahi-daemon \
+  xorg xserver-xorg-legacy openbox xinit \
+  x11-xserver-utils unclutter \
+  chromium \
+  python3 python3-gpiozero python3-lgpio python3-requests \
   2>/dev/null
 
-apt-get install -y --no-install-recommends chromium
+# Chromium binary name varies — normalise to chromium-browser
 ln -sf /usr/bin/chromium /usr/local/bin/chromium-browser 2>/dev/null || true
 
-# ── Node.js 20 LTS (via NodeSource) ─────────────────────────────
-if ! command -v node &>/dev/null || [[ "$(node --version)" != v20* ]]; then
-  info "Installing Node.js 20 LTS..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt-get install -y nodejs
-else
-  info "Node.js $(node --version) already installed"
-fi
-
 # =============================================================================
-# 2. Copy project to /opt/lyra
+# 3. Copy pi/ scripts to /opt/lyra/pi
 # =============================================================================
-info "Copying project to /opt/lyra..."
-mkdir -p /opt/lyra
-rsync -a --exclude='.git' --exclude='node_modules' --exclude='.next' --exclude='.pio' \
-  "${REPO_DIR}/" /opt/lyra/
-
+info "Installing pi scripts to /opt/lyra/pi..."
+mkdir -p /opt/lyra/pi
+cp "${SCRIPT_DIR}/machine_service.py" /opt/lyra/pi/
+cp "${SCRIPT_DIR}/kiosk.sh"          /opt/lyra/pi/
+cp "${SCRIPT_DIR}/lyra-machine.service" /opt/lyra/pi/
+chmod +x /opt/lyra/pi/kiosk.sh /opt/lyra/pi/machine_service.py
 chown -R "${LYRA_USER}:${LYRA_USER}" /opt/lyra
 
 # =============================================================================
-# 3. Add swap space (Next.js build needs more than 2GB RAM on Pi 5)
+# 4. GPIO machine service (talks to cloud API)
 # =============================================================================
-SWAP_FILE="/swapfile"
-if [ ! -f "${SWAP_FILE}" ]; then
-  info "Creating 2GB swap file (needed for Next.js build)..."
-  fallocate -l 2G "${SWAP_FILE}"
-  chmod 600 "${SWAP_FILE}"
-  mkswap "${SWAP_FILE}"
-  swapon "${SWAP_FILE}"
-  echo "${SWAP_FILE} none swap sw 0 0" >> /etc/fstab
-  info "Swap enabled"
-else
-  swapon "${SWAP_FILE}" 2>/dev/null || true
-  info "Swap already exists"
-fi
-
-# =============================================================================
-# 4. Install npm dependencies and build Next.js
-# =============================================================================
-info "Installing npm dependencies (this builds better-sqlite3 from source — takes a few minutes)..."
-cd /opt/lyra/webapp-next
-sudo -u "${LYRA_USER}" npm install --prefer-offline 2>&1 | tail -20
-
-# =============================================================================
-# 4. Python dependencies (via apt — avoids pip memory pressure on 2GB Pi)
-# =============================================================================
-info "Installing Python dependencies via apt..."
-apt-get install -y --no-install-recommends \
-  python3-gpiozero \
-  python3-lgpio \
-  python3-requests \
-  2>/dev/null
-info "Python deps installed"
-
-# =============================================================================
-# 5. Database directory
-# =============================================================================
-info "Creating database directory..."
-mkdir -p /var/lib/lyra
-chown "${LYRA_USER}:${LYRA_USER}" /var/lib/lyra
-
-# =============================================================================
-# 6. Write .env.local
-# =============================================================================
-ENV_FILE="/opt/lyra/webapp-next/.env.local"
-
-if [ -f "${ENV_FILE}" ]; then
-  warn ".env.local already exists — skipping (edit manually if needed)"
-else
-  info "Writing .env.local..."
-
-  # Generate secrets
-  ADMIN_JWT_SECRET=$(openssl rand -hex 32)
-  MACHINE_API_SECRET=$(openssl rand -hex 32)
-
-  cat > "${ENV_FILE}" <<EOF
-# Generated by pi/setup.sh on $(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-# ── Pi local mode ──────────────────────────────────────────────
-LOCAL_MODE=true
-SQLITE_DB_PATH=/var/lib/lyra/lyra.db
-NEXT_PUBLIC_APP_URL=http://lyra.local:3000
-
-# ── Auth secrets ───────────────────────────────────────────────
-ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
-MACHINE_API_SECRET=${MACHINE_API_SECRET}
-NODE_ENV=production
-
-# ── Razorpay (only needed if machine is NOT set to is_free) ────
-# Uncomment and fill in when internet payments are needed.
-# NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_...
-# RAZORPAY_KEY_SECRET=...
-# RAZORPAY_WEBHOOK_SECRET=...
-
-# ── Supabase (NOT used in LOCAL_MODE, kept for reference) ──────
-# NEXT_PUBLIC_SUPABASE_URL=
-# SUPABASE_SERVICE_ROLE_KEY=
-EOF
-  chown "${LYRA_USER}:${LYRA_USER}" "${ENV_FILE}"
-  info ".env.local written (admin JWT and machine secrets are auto-generated)"
-fi
-
-# =============================================================================
-# 7. Build Next.js
-# =============================================================================
-if [ -d "/opt/lyra/webapp-next/.next" ]; then
-  info "Next.js already built (.next folder present) — skipping build"
-else
-  info "Building Next.js app (this takes 5-10 min on Pi 5)..."
-  cd /opt/lyra/webapp-next
-  sudo -u "${LYRA_USER}" NODE_ENV=production NODE_OPTIONS="--max-old-space-size=1536" npm run build 2>&1 | tail -30
-  info "Next.js build complete"
-fi
-
-# =============================================================================
-# 8. Seed initial admin user in SQLite
-# =============================================================================
-info "Seeding admin user in SQLite..."
-DB_PATH="/var/lib/lyra/lyra.db"
-
-# Schema is created by the webapp on first request, but we need it now.
-sqlite3 "${DB_PATH}" < /opt/lyra/webapp-next/src/lib/db/schema.sql 2>/dev/null || true
-
-# Prompt for admin credentials
-echo ""
-echo "──────────────────────────────────────────────"
-echo " Create the initial admin account"
-echo "──────────────────────────────────────────────"
-read -rp "Admin email    : " ADMIN_EMAIL
-read -rsp "Admin password : " ADMIN_PASS
-echo ""
-
-# Hash password with SHA-256 (matches the login route)
-PASS_HASH=$(echo -n "${ADMIN_PASS}" | sha256sum | awk '{print $1}')
-ADMIN_ID=$(cat /proc/sys/kernel/random/uuid)
-NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-sqlite3 "${DB_PATH}" <<SQL
-INSERT OR IGNORE INTO coffee_admins (id, email, password_hash, name, is_active, created_at)
-VALUES ('${ADMIN_ID}', '${ADMIN_EMAIL}', '${PASS_HASH}', 'Admin', 1, '${NOW}');
-SQL
-info "Admin user created: ${ADMIN_EMAIL}"
-
-# =============================================================================
-# 9. Seed the physical machine row
-# =============================================================================
-echo ""
-echo "──────────────────────────────────────────────"
-echo " Register this Pi as a machine"
-echo "──────────────────────────────────────────────"
-read -rp "Machine name   : " MACHINE_NAME
-read -rp "Machine location (optional): " MACHINE_LOC
-
-# Read MAC address (prefer eth0, then end0, then wlan0)
-MACHINE_MAC=""
-for IFACE in eth0 end0 wlan0; do
-  MAC_FILE="/sys/class/net/${IFACE}/address"
-  if [ -f "${MAC_FILE}" ]; then
-    MAC_TRY=$(cat "${MAC_FILE}" | tr '[:lower:]' '[:upper:]')
-    if [ "${MAC_TRY}" != "00:00:00:00:00:00" ]; then
-      MACHINE_MAC="${MAC_TRY}"
-      break
-    fi
-  fi
-done
-
-if [ -z "${MACHINE_MAC}" ]; then
-  warn "Could not detect MAC address automatically."
-  read -rp "Enter MAC address (XX:XX:XX:XX:XX:XX): " MACHINE_MAC
-fi
-
-MACHINE_ID=$(cat /proc/sys/kernel/random/uuid)
-# Placeholder hash — will be replaced by /api/machine/identify on first Python service start
-PLACEHOLDER_KEY_HASH=$(echo -n "placeholder-${MACHINE_ID}" | sha256sum | awk '{print $1}')
-
-sqlite3 "${DB_PATH}" <<SQL
-INSERT OR IGNORE INTO coffee_machines
-  (id, name, location, status, api_key_hash, is_free, mac_id, created_at, updated_at)
-VALUES
-  ('${MACHINE_ID}',
-   '${MACHINE_NAME}',
-   '${MACHINE_LOC:-NULL}',
-   'active',
-   '${PLACEHOLDER_KEY_HASH}',
-   1,
-   '${MACHINE_MAC}',
-   '${NOW}',
-   '${NOW}');
-SQL
-info "Machine registered: ${MACHINE_NAME} (${MACHINE_MAC})"
-
-# =============================================================================
-# 10. Install systemd services
-# =============================================================================
-info "Installing systemd services..."
-
-# Fix ExecStart path for Next.js (npm global bin)
-NPM_BIN=$(npm bin -g 2>/dev/null || echo "/usr/local/bin")
-NEXT_BIN=$(which next 2>/dev/null || echo "${NPM_BIN}/next")
-
-cat > /etc/systemd/system/lyra-webapp.service <<EOF
+info "Installing lyra-machine systemd service..."
+cat > /etc/systemd/system/lyra-machine.service <<EOF
 [Unit]
-Description=Lyra Coffee Machine Next.js Webapp
-After=network.target
+Description=Lyra Coffee Machine GPIO Controller
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-User=${LYRA_USER}
-WorkingDirectory=/opt/lyra/webapp-next
-ExecStart=$(which node) /opt/lyra/webapp-next/node_modules/.bin/next start -p 3000
+User=root
+WorkingDirectory=/opt/lyra/pi
+ExecStart=/usr/bin/python3 /opt/lyra/pi/machine_service.py
 Restart=always
-RestartSec=5
+RestartSec=10
 StandardOutput=journal
 StandardError=journal
-Environment=NODE_ENV=production
-EnvironmentFile=/opt/lyra/webapp-next/.env.local
+Environment=LYRA_SERVER_URL=https://brew.lyra-app.co.in
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-cp /opt/lyra/pi/lyra-machine.service /etc/systemd/system/
-cp /opt/lyra/pi/lyra-kiosk.service   /etc/systemd/system/
-
-chmod +x /opt/lyra/pi/kiosk.sh
-
 systemctl daemon-reload
-systemctl enable lyra-webapp.service lyra-machine.service lyra-kiosk.service
-info "Services enabled"
+systemctl enable lyra-machine.service
+info "lyra-machine service enabled"
 
 # =============================================================================
-# 11. mDNS hostname (lyra.local)
+# 5. Console autologin + startx kiosk (no display manager needed)
 # =============================================================================
-info "Configuring mDNS hostname..."
-OLD_HOST=$(hostname)
-hostnamectl set-hostname lyra
-# Update /etc/hosts
-sed -i "s/${OLD_HOST}/lyra/g" /etc/hosts 2>/dev/null || true
-systemctl enable avahi-daemon
-systemctl restart avahi-daemon
-info "Hostname set to 'lyra' → accessible as http://lyra.local:3000"
+info "Configuring kiosk display..."
 
-# =============================================================================
-# 12. Display: console autologin + startx kiosk (no LightDM needed)
-# =============================================================================
-info "Configuring auto-login and kiosk display..."
-
-# Console autologin on tty1 — no display manager required
+# Auto-login on tty1
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
 [Service]
@@ -317,22 +110,15 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin ${LYRA_USER} --noclear %I \$TERM
 EOF
 
-# On login to tty1, start X automatically
-cat > "${LYRA_HOME}/.bash_profile" <<'EOF'
-# Auto-start kiosk on tty1
+# On tty1 login → start X → kiosk
+cat > "${LYRA_HOME}/.bash_profile" <<'PROFILE'
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
   exec startx /opt/lyra/pi/kiosk.sh -- :0 -nocursor 2>/tmp/kiosk-x11.log
 fi
-EOF
+PROFILE
 chown "${LYRA_USER}:${LYRA_USER}" "${LYRA_HOME}/.bash_profile"
 
-# Force HDMI output even if display not detected at boot
-BOOT_CONFIG="/boot/firmware/config.txt"
-if [ -f "${BOOT_CONFIG}" ]; then
-  grep -q "hdmi_force_hotplug" "${BOOT_CONFIG}" || echo "hdmi_force_hotplug=1" >> "${BOOT_CONFIG}"
-fi
-
-# Disable screen blanking in X11
+# Prevent X from blanking the screen
 mkdir -p /etc/X11/xorg.conf.d
 cat > /etc/X11/xorg.conf.d/10-no-blank.conf <<'EOF'
 Section "ServerFlags"
@@ -343,9 +129,25 @@ Section "ServerFlags"
 EndSection
 EOF
 
-# Boot to multi-user (text) — startx handles the display, no graphical.target needed
+# Force HDMI output even if display not detected at boot
+BOOT_CONFIG="/boot/firmware/config.txt"
+[ -f "${BOOT_CONFIG}" ] && grep -q "hdmi_force_hotplug" "${BOOT_CONFIG}" \
+  || echo "hdmi_force_hotplug=1" >> "${BOOT_CONFIG}"
+
+# Boot to text (multi-user) — startx handles the display
 systemctl set-default multi-user.target
 systemctl disable lightdm 2>/dev/null || true
+
+# =============================================================================
+# 6. mDNS hostname (lyra.local)
+# =============================================================================
+info "Setting hostname to 'lyra'..."
+OLD_HOST=$(hostname)
+hostnamectl set-hostname lyra
+sed -i "s/${OLD_HOST}/lyra/g" /etc/hosts 2>/dev/null || true
+echo "127.0.1.1 lyra" >> /etc/hosts
+systemctl enable avahi-daemon
+systemctl restart avahi-daemon 2>/dev/null || true
 
 # =============================================================================
 # Done
@@ -355,10 +157,7 @@ echo -e "${GRN}╔════════════════════�
 echo -e "${GRN}║          Lyra Pi 5 setup complete!                   ║${NC}"
 echo -e "${GRN}╚══════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo "  Admin panel : http://lyra.local:3000/admin/login"
-echo "  Admin email : ${ADMIN_EMAIL}"
-echo "  Machine MAC : ${MACHINE_MAC}"
-echo "  Machine ID  : ${MACHINE_ID}"
+echo "  Kiosk URL : https://brew.lyra-app.co.in"
 echo ""
 echo "  Wiring (BCM pin numbers):"
 echo "    MILK_A   → BCM 17   MILK_B   → BCM 27"
@@ -368,7 +167,7 @@ echo "    BTN_MILK → BCM  5   BTN_COFFEE→ BCM  6"
 echo "    BTN_TEA  → BCM 13   BTN_PROV → BCM 19"
 echo ""
 echo "  Next steps:"
-echo "    1. Reboot: sudo reboot"
-echo "    2. The 7\" display will open the ordering UI automatically."
-echo "    3. If machine doesn't appear online, check: sudo journalctl -u lyra-machine -f"
+echo "    1. sudo reboot"
+echo "    2. The display will open https://brew.lyra-app.co.in automatically"
+echo "    3. GPIO service logs: sudo journalctl -u lyra-machine -f"
 echo ""

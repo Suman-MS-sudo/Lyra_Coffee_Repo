@@ -12,7 +12,7 @@ Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-Environment=LYRA_SERVER_URL=http://localhost:3000
+Environment=LYRA_SERVER_URL=https://brew.lyra-app.co.in
 
 [Install]
 WantedBy=multi-user.target

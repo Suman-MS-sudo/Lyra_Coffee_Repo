@@ -1,40 +1,30 @@
 #!/usr/bin/env bash
-# Lyra kiosk launcher — called by startx on tty1 auto-login.
-# No window manager needed; Chromium runs directly on bare X.
+# Lyra kiosk — opens the cloud ordering UI on the Pi's display.
+# Called by startx from ~/.bash_profile on tty1 auto-login.
 
-WEBAPP_URL="http://localhost:3000"
+CLOUD_URL="https://brew.lyra-app.co.in"
 IDENTITY_FILE="/etc/lyra/machine.json"
 
 # Disable screen blanking
 xset s off -dpms 2>/dev/null || true
-xset s noblank 2>/dev/null || true
+xset s noblank  2>/dev/null || true
 
-# Wait for the webapp to respond (up to 120 s)
-echo "[kiosk] waiting for webapp..."
-for i in $(seq 1 60); do
-  if curl -sf --max-time 2 "${WEBAPP_URL}" > /dev/null 2>&1; then
-    echo "[kiosk] webapp is up"
+# Wait for network (up to 30 s)
+for i in $(seq 1 15); do
+  if curl -sf --max-time 2 "${CLOUD_URL}" > /dev/null 2>&1; then
     break
   fi
   sleep 2
 done
 
-# Resolve machine URL from identity file
+# Append machine ID if identity is known
 if [ -f "${IDENTITY_FILE}" ]; then
-  MACHINE_ID=$(python3 -c "import json; d=json.load(open('${IDENTITY_FILE}')); print(d.get('id',''))" 2>/dev/null || true)
-else
-  MACHINE_ID=""
+  MACHINE_ID=$(python3 -c "import json; print(json.load(open('${IDENTITY_FILE}')).get('id',''))" 2>/dev/null || true)
 fi
 
-if [ -n "${MACHINE_ID}" ]; then
-  URL="${WEBAPP_URL}/?machine=${MACHINE_ID}"
-else
-  URL="${WEBAPP_URL}"
-fi
-
+URL="${CLOUD_URL}${MACHINE_ID:+/?machine=${MACHINE_ID}}"
 echo "[kiosk] opening ${URL}"
 
-# Launch Chromium in kiosk mode on bare X (no window manager)
 exec chromium-browser \
   --kiosk \
   --noerrdialogs \
