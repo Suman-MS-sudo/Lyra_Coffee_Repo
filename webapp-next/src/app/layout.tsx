@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { Toaster } from 'sonner';
+import { Suspense } from 'react';
+import KioskNav from '@/components/order/KioskNav';
 import './globals.css';
 
 const inter = Inter({
@@ -57,6 +59,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                style={{ backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22><filter id=%22n%22><feTurbulence baseFrequency=%220.9%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>")' }} />
         </div>
         {children}
+        <Suspense fallback={null}>
+          <KioskNav />
+        </Suspense>
         <Toaster
           theme="dark"
           position="top-center"
