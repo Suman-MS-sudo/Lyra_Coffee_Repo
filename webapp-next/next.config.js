@@ -9,6 +9,17 @@ const nextConfig = {
   },
   // Disable SWC minification — use terser instead, which is more stable on ARM64
   swcMinify: false,
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // better-sqlite3 is a native addon loaded only at runtime on the Pi.
+      // Mark it external so webpack never tries to bundle or resolve it.
+      config.externals = [
+        ...(Array.isArray(config.externals) ? config.externals : [config.externals]),
+        'better-sqlite3',
+      ];
+    }
+    return config;
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
