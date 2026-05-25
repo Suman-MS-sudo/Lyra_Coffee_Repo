@@ -9,6 +9,8 @@ const nextConfig = {
   },
   // Disable SWC minification — use terser instead, which is more stable on ARM64
   swcMinify: false,
+  // Don't download Google Fonts at build time — use browser fallback instead
+  optimizeFonts: false,
   webpack: (config, { isServer }) => {
     if (isServer) {
       // better-sqlite3 is a native addon loaded only at runtime on the Pi.
