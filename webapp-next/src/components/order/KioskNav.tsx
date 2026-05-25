@@ -1,11 +1,30 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { RotateCcw, Home, ChevronLeft } from 'lucide-react';
 
 export default function KioskNav() {
   const params = useSearchParams();
   const machineId = params.get('machine');
+
+  // Block all links that navigate outside this app
+  useEffect(() => {
+    if (!machineId) return;
+    function handleClick(e: MouseEvent) {
+      const anchor = (e.target as Element).closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href') ?? '';
+      const isExternal = /^https?:\/\//.test(href) && !href.startsWith(window.location.origin);
+      const isScheme = /^(mailto|tel|sms):/.test(href);
+      if (isExternal || isScheme) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  }, [machineId]);
 
   if (!machineId) return null;
 
