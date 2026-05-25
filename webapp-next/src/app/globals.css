@@ -6,9 +6,17 @@
   :root {
     --radius: 16px;
   }
-  * { -webkit-tap-highlight-color: transparent; }
+  * {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
   html { scroll-behavior: smooth; }
-  body { overscroll-behavior: none; }
+  body {
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
 }
 
 @layer components {

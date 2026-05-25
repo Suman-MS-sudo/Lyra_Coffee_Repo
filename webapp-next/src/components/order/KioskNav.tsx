@@ -9,43 +9,43 @@ export default function KioskNav() {
 
   if (!machineId) return null;
 
-  const homeUrl = `${window.location.origin}/?machine=${machineId}`;
+  function goHome() {
+    window.location.href = `${window.location.origin}/?machine=${machineId}`;
+  }
 
   return (
-    <>
-    <div className="h-[60px]" />
-    <div className="fixed bottom-0 left-0 right-0 z-[9999] flex items-center justify-around
-      bg-black/80 backdrop-blur-md border-t border-white/10 px-6 py-3 safe-area-bottom">
-      <button
-        onClick={() => window.history.back()}
-        className="flex flex-col items-center gap-1 px-6 py-2 rounded-xl
-          text-white/50 hover:text-white active:text-coffee-400
-          hover:bg-white/8 active:bg-white/12 transition-all"
-      >
-        <ChevronLeft size={22} />
-        <span className="text-[10px] tracking-widest uppercase">Back</span>
-      </button>
+    <div
+      className="fixed bottom-0 left-0 right-0 z-[9999]"
+      style={{ background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(255,255,255,0.08)' }}
+    >
+      <div className="flex items-center justify-around px-4 py-2">
+        <button
+          onClick={() => window.history.back()}
+          className="flex flex-col items-center gap-1 min-w-[80px] py-3 px-4 rounded-2xl
+            text-white/40 active:text-white active:bg-white/10 transition-all"
+        >
+          <ChevronLeft size={24} strokeWidth={2} />
+          <span className="text-[9px] font-semibold tracking-[0.2em] uppercase">Back</span>
+        </button>
 
-      <button
-        onClick={() => { window.location.href = homeUrl; }}
-        className="flex flex-col items-center gap-1 px-6 py-2 rounded-xl
-          text-coffee-400 hover:text-coffee-300 active:text-coffee-200
-          hover:bg-coffee-500/10 active:bg-coffee-500/15 transition-all"
-      >
-        <Home size={22} />
-        <span className="text-[10px] tracking-widest uppercase">Home</span>
-      </button>
+        <button
+          onClick={goHome}
+          className="flex flex-col items-center gap-1 min-w-[80px] py-3 px-4 rounded-2xl
+            text-coffee-400 active:text-coffee-300 active:bg-coffee-500/15 transition-all"
+        >
+          <Home size={24} strokeWidth={2} />
+          <span className="text-[9px] font-semibold tracking-[0.2em] uppercase">Home</span>
+        </button>
 
-      <button
-        onClick={() => window.location.reload()}
-        className="flex flex-col items-center gap-1 px-6 py-2 rounded-xl
-          text-white/50 hover:text-white active:text-coffee-400
-          hover:bg-white/8 active:bg-white/12 transition-all"
-      >
-        <RotateCcw size={22} />
-        <span className="text-[10px] tracking-widest uppercase">Refresh</span>
-      </button>
+        <button
+          onClick={() => window.location.reload()}
+          className="flex flex-col items-center gap-1 min-w-[80px] py-3 px-4 rounded-2xl
+            text-white/40 active:text-white active:bg-white/10 transition-all"
+        >
+          <RotateCcw size={24} strokeWidth={2} />
+          <span className="text-[9px] font-semibold tracking-[0.2em] uppercase">Refresh</span>
+        </button>
+      </div>
     </div>
-    </>
   );
 }

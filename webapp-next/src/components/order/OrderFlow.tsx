@@ -274,7 +274,7 @@ export default function OrderFlow({
   const stepIdx = STEPS.indexOf(step);
 
   return (
-    <main className="min-h-dvh flex flex-col max-w-md mx-auto">
+    <main className="min-h-dvh flex flex-col max-w-md mx-auto pb-[72px]">
       {/* ── Brand bar ────────────────────────────────────────── */}
       <div className="px-5 pt-5 pb-2 flex items-center justify-between border-b border-white/5">
         <BrandWordmark size="sm" withLogo />
