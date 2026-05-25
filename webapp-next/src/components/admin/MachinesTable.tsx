@@ -353,7 +353,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
             {!newIsFree && (
               <div className="grid grid-cols-3 gap-3">
                 <label className="block">
-                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">☕ Coffee (₹)</span>
+                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">Coffee (₹)</span>
                   <input
                     inputMode="decimal"
                     value={newCoffeeRupees}
@@ -363,7 +363,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">🍵 Tea (₹)</span>
+                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">Tea (₹)</span>
                   <input
                     inputMode="decimal"
                     value={newTeaRupees}
@@ -373,7 +373,7 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">🥛 Milk (₹)</span>
+                  <span className="text-[11px] uppercase tracking-wider text-white/40 mb-1 block">Milk (₹)</span>
                   <input
                     inputMode="decimal"
                     value={newMilkRupees}
@@ -538,19 +538,19 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                               <input
                                 value={editCoffeeRupees}
                                 onChange={e => setEditCoffeeRupees(e.target.value)}
-                                placeholder="☕ ₹"
+                                placeholder="Coffee ₹"
                                 className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
                               />
                               <input
                                 value={editTeaRupees}
                                 onChange={e => setEditTeaRupees(e.target.value)}
-                                placeholder="🍵 ₹"
+                                placeholder="Tea ₹"
                                 className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
                               />
                               <input
                                 value={editMilkRupees}
                                 onChange={e => setEditMilkRupees(e.target.value)}
-                                placeholder="🥛 ₹"
+                                placeholder="Milk ₹"
                                 className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-coffee-500/50"
                               />
                             </div>
@@ -566,9 +566,9 @@ export default function MachinesTable({ initialMachines, customers }: Props) {
                             <span className="text-xs text-green-400 font-medium">Free</span>
                           ) : (
                             <div className="text-xs text-white/50 space-y-0.5">
-                              <div>☕ {m.price_coffee_paise != null ? `₹${m.price_coffee_paise / 100}` : 'default'}</div>
-                              <div>🍵 {m.price_tea_paise   != null ? `₹${m.price_tea_paise   / 100}` : 'default'}</div>
-                              <div>🥛 {m.price_milk_paise  != null ? `₹${m.price_milk_paise  / 100}` : 'default'}</div>
+                              <div>Coffee {m.price_coffee_paise != null ? `₹${m.price_coffee_paise / 100}` : 'default'}</div>
+                              <div>Tea {m.price_tea_paise   != null ? `₹${m.price_tea_paise   / 100}` : 'default'}</div>
+                              <div>Milk {m.price_milk_paise  != null ? `₹${m.price_milk_paise  / 100}` : 'default'}</div>
                             </div>
                           )}
                           <div className="text-[10px] text-white/20 group-hover:text-coffee-400 transition-colors">Edit →</div>

@@ -16,7 +16,7 @@ const STATUS_STYLES: Record<string, string> = {
   refunded:   'bg-white/10 text-white/40 border-white/10',
 };
 
-const DRINK_EMOJI: Record<string, string> = { coffee: '☕', tea: '🍵', milk: '🥛' };
+const DRINK_LABEL: Record<string, string> = { coffee: 'Coffee', tea: 'Tea', milk: 'Milk' };
 
 function fmtMethod(m: string | null | undefined) {
   if (!m) return '—';
@@ -135,7 +135,7 @@ export default async function CustomerTransactionsPage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-base">{DRINK_EMOJI[order.drink_type] ?? '☕'}</span>
+                        <span className="text-base">{DRINK_LABEL[order.drink_type] ?? 'Coffee'}</span>
                         <div>
                           <p className="text-white capitalize font-medium">{order.drink_type}</p>
                           {order.customization?.strength && (

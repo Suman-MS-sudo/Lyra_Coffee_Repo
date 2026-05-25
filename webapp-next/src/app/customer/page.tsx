@@ -42,7 +42,7 @@ const STATUS_STYLES: Record<string, string> = {
   maintenance: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
 };
 
-const DRINK_EMOJI: Record<string, string> = { coffee: '☕', tea: '🍵', milk: '🥛' };
+const DRINK_LABEL: Record<string, string> = { coffee: 'Coffee', tea: 'Tea', milk: 'Milk' };
 const ORDER_STATUS_STYLES: Record<string, string> = {
   pending:    'bg-amber-500/15 text-amber-400 border-amber-500/20',
   paid:       'bg-blue-500/15 text-blue-400 border-blue-500/20',
@@ -314,7 +314,7 @@ export default async function CustomerDashboardPage() {
           <div className="divide-y divide-white/5">
             {recentOrders.map(order => (
               <div key={order.id} className="px-5 py-3 flex items-center gap-3">
-                <span className="text-xl w-7 shrink-0">{DRINK_EMOJI[order.drink_type] ?? '☕'}</span>
+                <span className="text-xl w-7 shrink-0">{DRINK_LABEL[order.drink_type] ?? 'Coffee'}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium capitalize">{order.drink_type}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">

@@ -52,7 +52,7 @@ export default function OrderSummary({ drink, customization, isFree, priceCoffee
       <div className="glass rounded-3xl p-4 mb-3">
         <Row
           label="Drink"
-          value={drink === 'coffee' ? '☕ Filter Coffee' : drink === 'tea' ? '🍵 Tea' : '🥛 Hot Milk'}
+          value={drink === 'coffee' ? 'Filter Coffee' : drink === 'tea' ? 'Tea' : 'Hot Milk'}
         />
         <Row label="Size"     value="Regular · 100ml" />
         <Row label="Strength" value={cap(customization.strength)} />
@@ -67,7 +67,6 @@ export default function OrderSummary({ drink, customization, isFree, priceCoffee
 
       {isFree && (
         <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-2xl px-4 py-3 mb-3">
-          <span className="text-xl">🎁</span>
           <p className="text-green-300 text-sm font-medium">Complimentary — no payment needed</p>
         </div>
       )}

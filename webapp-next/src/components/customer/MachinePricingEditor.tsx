@@ -104,7 +104,7 @@ export default function MachinePricingEditor({
           </span>
         ) : (
           <span className="text-white/60 text-xs whitespace-nowrap">
-            ☕ ₹{paiseToRupees(savedCoffee, defaultCoffee)} · 🍵 ₹{paiseToRupees(savedTea, defaultTea)} · 🥛 ₹{paiseToRupees(savedMilk, defaultMilk)}
+            Coffee ₹{paiseToRupees(savedCoffee, defaultCoffee)} · Tea ₹{paiseToRupees(savedTea, defaultTea)} · Milk ₹{paiseToRupees(savedMilk, defaultMilk)}
           </span>
         )}
         <button

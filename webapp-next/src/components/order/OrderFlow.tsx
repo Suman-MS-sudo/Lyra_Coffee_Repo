@@ -11,7 +11,6 @@ import OrderSummary from './OrderSummary';
 import PaymentSuccess from './PaymentSuccess';
 import MachineLiveStatus from './MachineLiveStatus';
 import { initiateRazorpayPayment } from '@/lib/actions/payment';
-import { BrandFooterCompact } from '@/components/branding/BrandFooter';
 import { BrandMonogram, BrandWordmark } from '@/components/branding/BrandWordmark';
 
 type Step = 'drink' | 'customize' | 'summary' | 'success';
@@ -129,13 +128,13 @@ function CupPlacementModal({ onConfirm, onCancel }: { onConfirm: () => void; onC
               animate={{ scale: 1, opacity: 1, x: 0 }}
               transition={{ delay: 0.55, type: 'spring', stiffness: 400, damping: 22 }}
             >
-              Pick me! 🙋
+              Place me here!
             </motion.div>
           </div>
 
           <h3 className="display text-2xl text-white mb-3">Place your cup first!</h3>
           <p className="text-white/60 text-sm leading-relaxed mb-2">
-            👇 Put your cup <span className="text-coffee-400 font-semibold">directly under the nozzle</span> before tapping below.
+            Put your cup <span className="text-coffee-400 font-semibold">directly under the nozzle</span> before tapping below.
           </p>
           <p className="text-white/35 text-xs leading-relaxed mb-6">
             The machine will start pouring immediately once you confirm.

@@ -70,7 +70,7 @@ export interface DrinkCount {
 }
 
 const DRINK_COLOR: Record<string, string> = { coffee: AMBER, tea: GREEN, milk: BLUE };
-const DRINK_LABEL: Record<string, string> = { coffee: '☕ Coffee', tea: '🍵 Tea', milk: '🥛 Milk' };
+const DRINK_LABEL: Record<string, string> = { coffee: 'Coffee', tea: 'Tea', milk: 'Milk' };
 
 export function DrinkBarChart({ data }: { data: DrinkCount[] }) {
   const display = data.map(d => ({ ...d, label: DRINK_LABEL[d.drink] ?? d.drink }));

@@ -184,7 +184,7 @@ export default async function AdminDashboardPage() {
     coffee_machines: Array.isArray(row.coffee_machines) ? (row.coffee_machines[0] ?? null) : (row.coffee_machines ?? null),
   }));
 
-  const DRINK_EMOJI: Record<string, string> = { coffee: '☕', tea: '🍵', milk: '🥛' };
+  const DRINK_LABEL: Record<string, string> = { coffee: 'Coffee', tea: 'Tea', milk: 'Milk' };
   const ORDER_STATUS_STYLES: Record<string, string> = {
     pending: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
     paid: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
@@ -290,7 +290,7 @@ export default async function AdminDashboardPage() {
           <div className="space-y-3">
             {recentOrders.slice(0, 6).map((o: { id: string; created_at: string; drink_type: string; amount_paise: number; status: string; coffee_machines: { name: string } | null }) => (
               <div key={o.id} className="flex items-center gap-2.5">
-                <span className="text-lg shrink-0">{DRINK_EMOJI[o.drink_type] ?? '☕'}</span>
+                <span className="text-lg shrink-0">{DRINK_LABEL[o.drink_type] ?? 'Coffee'}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-xs font-medium truncate">{o.coffee_machines?.name ?? '—'}</p>
                   <p className="text-white/30 text-[10px]">

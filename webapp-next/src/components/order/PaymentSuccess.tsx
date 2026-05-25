@@ -608,7 +608,7 @@ function BrewCompletePopup({
   onBrewMore: () => void;
   onClose:    () => void;
 }) {
-  const icon = drink === 'coffee' ? '☕' : drink === 'tea' ? '🍵' : '🥛';
+  const icon = drink === 'coffee' ? 'Coffee' : drink === 'tea' ? 'Tea' : 'Milk';
 
   return (
     <motion.div
@@ -867,7 +867,7 @@ export default function PaymentSuccess({
 
   const subline =
     failed ? 'The machine could not complete this order. Please contact staff for a refund.' :
-    done   ? `Please collect your ${drink === 'coffee' ? '☕ filter coffee' : drink === 'tea' ? '🍵 tea' : '🥛 hot milk'} at the dispensing slot.` :
+    done   ? `Please collect your ${drink === 'coffee' ? 'filter coffee' : drink === 'tea' ? 'tea' : 'hot milk'} at the dispensing slot.` :
              `A little Lyra magic is preparing your ${drink === 'coffee' ? 'filter coffee' : drink === 'tea' ? 'tea' : 'hot milk'}.`;
 
   return (

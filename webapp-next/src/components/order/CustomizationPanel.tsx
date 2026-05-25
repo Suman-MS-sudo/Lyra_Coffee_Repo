@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Leaf, Coffee, Zap, Droplets, X } from 'lucide-react';
 import type { DrinkCustomization } from '@/lib/types/database';
 import { cn } from '@/lib/utils/cn';
 
@@ -21,7 +21,7 @@ function OptionRow<T extends string>({
   onChange,
 }: {
   label:    string;
-  options:  { value: T; label: string; icon?: string }[];
+  options:  { value: T; label: string; icon?: React.ReactNode }[];
   value:    T;
   onChange: (v: T) => void;
 }) {
@@ -43,7 +43,7 @@ function OptionRow<T extends string>({
                 : 'bg-white/5 border-white/10 text-white/60 hover:border-white/30',
             )}
           >
-            {o.icon && <span className="text-base leading-none">{o.icon}</span>}
+            {o.icon && <span className="leading-none">{o.icon}</span>}
             <span className="leading-tight whitespace-pre-line">{o.label}</span>
           </button>
         ))}
@@ -60,8 +60,8 @@ function MilkToggle({ value, onChange }: { value: boolean; onChange: (v: boolean
       </p>
       <div className="grid grid-cols-2 gap-2">
         {[
-          { value: true,  label: 'With milk',    icon: '🥛' },
-          { value: false, label: 'No milk',      icon: '🖤' },
+          { value: true,  label: 'With milk', icon: <Droplets size={16} /> },
+          { value: false, label: 'No milk',   icon: <X size={16} /> },
         ].map(o => (
           <button
             key={String(o.value)}
@@ -116,9 +116,9 @@ export default function CustomizationPanel({ drink, initial, onBack, onNext }: P
           value={c.strength}
           onChange={v => set('strength', v)}
           options={[
-            { value: 'light',  label: 'Light\n20:80',  icon: '🌿' },
-            { value: 'medium', label: 'Medium\n30:70', icon: drink === 'coffee' ? '☕' : '🍵' },
-            { value: 'strong', label: 'Strong\n40:60', icon: '⚡' },
+            { value: 'light',  label: 'Light\n20:80',  icon: <Leaf size={16} /> },
+            { value: 'medium', label: 'Medium\n30:70', icon: <Coffee size={16} /> },
+            { value: 'strong', label: 'Strong\n40:60', icon: <Zap size={16} /> },
           ]}
         />
       )}

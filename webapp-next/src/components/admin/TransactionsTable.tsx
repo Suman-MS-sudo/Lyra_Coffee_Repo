@@ -28,7 +28,7 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
   refunded:   'bg-white/10 text-white/40 border-white/10',
 };
 
-const DRINK_EMOJI = { coffee: '☕', tea: '🍵' } as const;
+const DRINK_EMOJI = { coffee: 'Coffee', tea: 'Tea' } as const;
 
 function formatMethod(method: string | null | undefined): string {
   if (!method) return '—';
