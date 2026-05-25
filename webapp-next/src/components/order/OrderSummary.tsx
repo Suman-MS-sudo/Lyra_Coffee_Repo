@@ -40,16 +40,16 @@ export default function OrderSummary({ drink, customization, isFree, priceCoffee
     <div>
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-white/40 hover:text-white/70 text-sm mb-6 transition-colors"
+        className="flex items-center gap-1 text-white/40 hover:text-white/70 text-sm mb-3 transition-colors"
       >
         <ChevronLeft size={16} /> Back
       </button>
 
-      <h2 className="display text-3xl text-white mb-1">Review your <span className="italic text-coffee-300">order</span></h2>
-      <p className="text-white/40 text-sm mb-8">Everything look right?</p>
+      <h2 className="display text-2xl text-white mb-1">Review your <span className="italic text-coffee-300">order</span></h2>
+      <p className="text-white/40 text-sm mb-4">Everything look right?</p>
 
       {/* Summary card */}
-      <div className="glass rounded-3xl p-5 mb-6">
+      <div className="glass rounded-3xl p-4 mb-3">
         <Row
           label="Drink"
           value={drink === 'coffee' ? '☕ Filter Coffee' : drink === 'tea' ? '🍵 Tea' : '🥛 Hot Milk'}
@@ -65,22 +65,10 @@ export default function OrderSummary({ drink, customization, isFree, priceCoffee
         </div>
       </div>
 
-      {/* Payment badge */}
-      {isFree ? (
-        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-2xl px-4 py-3 mb-6">
-          <span className="text-2xl">🎁</span>
-          <div>
-            <p className="text-green-300 text-sm font-medium">Complimentary drink</p>
-            <p className="text-white/30 text-xs">No payment required on this machine</p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-6">
-          <span className="text-2xl">📱</span>
-          <div>
-            <p className="text-white/80 text-sm font-medium">Pay via UPI</p>
-            <p className="text-white/30 text-xs">GPay, PhonePe, Paytm & more</p>
-          </div>
+      {isFree && (
+        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-2xl px-4 py-3 mb-3">
+          <span className="text-xl">🎁</span>
+          <p className="text-green-300 text-sm font-medium">Complimentary — no payment needed</p>
         </div>
       )}
 
@@ -110,7 +98,7 @@ export default function OrderSummary({ drink, customization, isFree, priceCoffee
         )}
       </button>
 
-      <p className="text-center text-white/20 text-xs mt-4">
+      <p className="text-center text-white/20 text-xs mt-3">
         {isFree ? 'Powered by Lyra' : 'Secured by Razorpay · 256-bit encrypted'}
       </p>
     </div>

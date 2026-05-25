@@ -356,9 +356,9 @@ export default function OrderFlow({
   const stepIdx = STEPS.indexOf(step);
 
   return (
-    <main className="min-h-dvh flex flex-col max-w-md mx-auto pb-[72px]">
+    <main className="h-dvh flex flex-col max-w-md mx-auto pb-[72px] overflow-hidden">
       {/* ── Brand bar ────────────────────────────────────────── */}
-      <div className="px-5 pt-5 pb-2 flex items-center justify-between border-b border-white/5">
+      <div className="px-5 pt-3 pb-2 flex items-center justify-between border-b border-white/5 shrink-0">
         <BrandWordmark size="sm" withLogo />
         <span className="text-[10px] font-semibold tracking-[0.2em] text-lyra-pink uppercase">
           Filter Coffee, Tea &amp; Milk
@@ -366,31 +366,30 @@ export default function OrderFlow({
       </div>
 
       {/* ── Header ───────────────────────────────────────────── */}
-      <header className="px-5 pt-7 pb-4 flex items-center justify-between">
+      <header className="px-5 pt-3 pb-2 flex items-center justify-between shrink-0">
         <div>
-          <p className="text-[10px] font-medium text-white/40 uppercase tracking-[0.28em] mb-1.5">
+          <p className="text-[10px] font-medium text-white/40 uppercase tracking-[0.28em] mb-1">
             {machine.location ?? 'Lyra Enterprises'}
           </p>
-          <h1 className="display text-2xl text-white leading-tight">{machine.name}</h1>          <div className="mt-2">
+          <h1 className="display text-xl text-white leading-tight">{machine.name}</h1>
+          <div className="mt-1">
             <MachineLiveStatus
               machineId={machine.id}
               initialLastSeenAt={machine.last_seen_at ?? null}
               onStatusChange={setIsOnline}
               onLastSeenAtChange={setLastSeenAt}
             />
-          </div>        </div>
-        <BrandMonogram size={44} />
+          </div>
+        </div>
+        <BrandMonogram size={38} />
       </header>
 
       {/* ── Progress bar ──────────────────────────────────────── */}
       {step !== 'success' && (
-        <div className="px-5 mb-6">
+        <div className="px-5 mb-3 shrink-0">
           <div className="flex gap-1.5">
             {(['drink', 'customize', 'summary'] as Step[]).map((s, i) => (
-              <div
-                key={s}
-                className="h-1 flex-1 rounded-full overflow-hidden bg-white/10"
-              >
+              <div key={s} className="h-1 flex-1 rounded-full overflow-hidden bg-white/10">
                 <motion.div
                   className="h-full bg-coffee-500 rounded-full"
                   initial={{ width: 0 }}
@@ -404,7 +403,7 @@ export default function OrderFlow({
       )}
 
       {/* ── Step content ─────────────────────────────────────── */}
-      <div className="flex-1 px-5 pb-8 overflow-hidden">
+      <div className="flex-1 px-5 overflow-y-auto min-h-0">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
@@ -453,7 +452,6 @@ export default function OrderFlow({
         </AnimatePresence>
       </div>
 
-      <BrandFooterCompact />
 
       <AnimatePresence>
         {showCupModal && (

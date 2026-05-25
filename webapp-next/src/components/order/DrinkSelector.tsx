@@ -45,19 +45,16 @@ export default function DrinkSelector({
 }) {
   return (
     <div className="animate-fade-in">
-      <div className="mb-8">
-        <p className="text-[10px] font-semibold tracking-[0.32em] text-coffee-400 uppercase mb-2">
+      <div className="mb-4">
+        <p className="text-[10px] font-semibold tracking-[0.32em] text-coffee-400 uppercase mb-1">
           Our Menu
         </p>
-        <h2 className="display text-3xl sm:text-4xl text-white leading-tight">
+        <h2 className="display text-2xl text-white leading-tight">
           Pick your <span className="italic text-coffee-300">brew</span>
         </h2>
-        <p className="text-white/45 text-sm mt-2">
-          Freshly prepared filter coffee, tea, and hot milk, made to order.
-        </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-3 gap-3">
         {DRINKS.map((d, i) => (
           <motion.button
             key={d.id}
@@ -78,7 +75,7 @@ export default function DrinkSelector({
           >
             {/* Image zone — glow background bleeds seamlessly into card body */}
             <div
-              className="relative h-[160px] overflow-hidden"
+              className="relative h-[120px] overflow-hidden"
               style={{
                 background: `radial-gradient(ellipse at 50% 62%, ${d.glow} 0%, transparent 72%)`,
               }}
@@ -107,7 +104,7 @@ export default function DrinkSelector({
         ))}
       </div>
 
-      <div className="ornament-divider mt-10 px-2">
+      <div className="ornament-divider mt-5 px-2">
         <span>Brewed Fresh</span>
       </div>
     </div>

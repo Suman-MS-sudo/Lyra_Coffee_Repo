@@ -26,8 +26,8 @@ function OptionRow<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="mb-6">
-      <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
+    <div className="mb-4">
+      <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-2">
         {label}
       </p>
       <div className="grid grid-cols-3 gap-2">
@@ -54,8 +54,8 @@ function OptionRow<T extends string>({
 
 function MilkToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="mb-6">
-      <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
+    <div className="mb-4">
+      <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-2">
         Milk
       </p>
       <div className="grid grid-cols-2 gap-2">
@@ -96,18 +96,18 @@ export default function CustomizationPanel({ drink, initial, onBack, onNext }: P
       {/* Back */}
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-white/40 hover:text-white/70 text-sm mb-6 transition-colors"
+        className="flex items-center gap-1 text-white/40 hover:text-white/70 text-sm mb-3 transition-colors"
       >
         <ChevronLeft size={16} /> Back
       </button>
 
 
-      <h2 className="display text-3xl text-white mb-1">
+      <h2 className="display text-2xl text-white mb-1">
         Customise your <span className="italic text-coffee-300">
           {drink === 'coffee' ? 'filter coffee' : drink === 'tea' ? 'tea' : 'hot milk'}
         </span>
       </h2>
-      <p className="text-white/40 text-sm mb-8">Regular 100ml · make it exactly how you like it</p>
+      <p className="text-white/40 text-sm mb-4">Regular 100ml · make it exactly how you like it</p>
 
 
       {showStrength && (
