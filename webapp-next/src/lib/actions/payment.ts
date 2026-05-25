@@ -72,8 +72,13 @@ export async function initiateRazorpayPayment(opts: InitiatePaymentOptions): Pro
         : opts.drink_type === 'tea' ? 'Tea — 100ml'
         : 'Hot Milk — 100ml',
       order_id:    orderData.order_id,
-      prefill:     { method: 'upi', contact: '+919999999999', email: 'kiosk@lyra.co.in' },
+      prefill:     { method: 'upi', contact: '9999999999', email: 'kiosk@lyra.co.in' },
       readonly:    { contact: true, email: true },
+      config: {
+        display: {
+          hide: [{ name: 'contact' }, { name: 'email' }],
+        },
+      },
       theme:       { color: '#D4A24A' },
 
       handler: async function (response: {

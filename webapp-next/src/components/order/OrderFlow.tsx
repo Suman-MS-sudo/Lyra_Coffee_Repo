@@ -19,7 +19,7 @@ type Step = 'drink' | 'customize' | 'summary' | 'success';
 function CupPlacementModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -133,10 +133,12 @@ function CupPlacementModal({ onConfirm, onCancel }: { onConfirm: () => void; onC
             </motion.div>
           </div>
 
-          <h3 className="display text-2xl text-white mb-2">Hold up! ✋</h3>
-          <p className="text-white/45 text-sm leading-relaxed mb-6">
-            The machine is ready to pour — but your cup isn&apos;t in position yet.
-            Slide it under the nozzle first!
+          <h3 className="display text-2xl text-white mb-3">Place your cup first!</h3>
+          <p className="text-white/60 text-sm leading-relaxed mb-2">
+            👇 Put your cup <span className="text-coffee-400 font-semibold">directly under the nozzle</span> before tapping below.
+          </p>
+          <p className="text-white/35 text-xs leading-relaxed mb-6">
+            The machine will start pouring immediately once you confirm.
           </p>
 
           <motion.button
@@ -147,13 +149,13 @@ function CupPlacementModal({ onConfirm, onCancel }: { onConfirm: () => void; onC
             whileTap={{ scale: 0.97 }}
           >
             <Sparkles size={16} />
-            Cup&apos;s in — pour it!
+            Cup is ready — start pouring!
           </motion.button>
           <button
             onClick={onCancel}
             className="w-full py-2 text-white/25 hover:text-white/55 text-sm transition-colors"
           >
-            One sec...
+            Not yet, wait
           </button>
         </div>
       </motion.div>
