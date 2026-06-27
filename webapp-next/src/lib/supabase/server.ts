@@ -39,4 +39,17 @@ function makeClient() {
   });
 }
 
-export const supabaseAdmin = makeClient();
+// Lazy singleton — created on first use, not at module load time.
+// This prevents build-time errors when env vars are not available during SSG.
+let _client: ReturnType<typeof makeClient> | null = null;
+export function getSupabaseAdmin() {
+  if (!_client) _client = makeClient();
+  return _client;
+}
+
+// Keep backward-compatible named export as a getter proxy
+export const supabaseAdmin = new Proxy({} as ReturnType<typeof makeClient>, {
+  get(_target, prop) {
+    return (getSupabaseAdmin() as never)[prop as never];
+  },
+});
