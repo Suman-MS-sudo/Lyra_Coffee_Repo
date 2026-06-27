@@ -20,7 +20,14 @@
  *   FOREIGN KEY constraint    → code '23503'
  */
 
-import Database from 'better-sqlite3';
+// better-sqlite3 is only available on Pi (LOCAL_MODE=true).
+// Using require() so TypeScript does not type-check or resolve this import on Vercel.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Database: any = null;
+if (process.env.LOCAL_MODE === 'true') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Database = require('better-sqlite3');
+}
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -177,7 +184,8 @@ class SQLiteBuilder {
   private _wantSingle      = false;
   private _wantMaybeSingle = false;
 
-  constructor(private db: Database.Database) {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(private db: any) {}
 
   from(table: string): this {
     this._table = table;
@@ -539,9 +547,11 @@ function translateError(e: unknown): DbError {
 // ────────────────────────────────────────────────────────────────
 //  Client factory
 // ────────────────────────────────────────────────────────────────
-let _db: Database.Database | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _db: any = null;
 
-function getDb(dbPath: string): Database.Database {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDb(dbPath: string): any {
   if (_db) return _db;
 
   const dir = path.dirname(dbPath);
