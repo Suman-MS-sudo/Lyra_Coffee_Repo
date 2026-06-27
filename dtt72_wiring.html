@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DTT-72 + ESP32 Wiring Diagram</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      color: #f0a500;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      font-size: 13px;
+      margin-bottom: 32px;
+    }
+
+    .diagram {
+      position: relative;
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Component boxes */
+    .comp {
+      rx: 10;
+      ry: 10;
+      stroke-width: 2;
+    }
+
+    .esp32   { fill: #1a2a1a; stroke: #4caf50; }
+    .relay   { fill: #1a1a2a; stroke: #5c8aff; }
+    .dtt72   { fill: #2a1a1a; stroke: #f0a500; }
+    .ssr     { fill: #1a2a2a; stroke: #00bcd4; }
+    .heater  { fill: #2a1a1a; stroke: #ff5252; }
+    .mains   { fill: #2a2a1a; stroke: #ffeb3b; }
+    .fuse    { fill: #1e1e1e; stroke: #ff9800; }
+    .thermo  { fill: #1a1a2a; stroke: #ce93d8; }
+
+    .comp-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .pin-label {
+      font-size: 10px;
+      fill: #aaa;
+    }
+
+    .pin-value {
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    /* Wire colors */
+    .wire-live    { stroke: #ff5252; stroke-width: 2.5; fill: none; }
+    .wire-neutral { stroke: #5c8aff; stroke-width: 2.5; fill: none; }
+    .wire-gpio    { stroke: #4caf50; stroke-width: 2; fill: none; }
+    .wire-signal  { stroke: #f0a500; stroke-width: 2; fill: none; stroke-dasharray: 6,3; }
+    .wire-thermo  { stroke: #ce93d8; stroke-width: 2; fill: none; }
+    .wire-gnd     { stroke: #888; stroke-width: 2; fill: none; }
+    .wire-5v      { stroke: #ff9800; stroke-width: 2; fill: none; }
+
+    wire-label {
+      font-size: 10px;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 24px;
+      padding: 16px;
+      background: #141414;
+      border-radius: 12px;
+      border: 1px solid #222;
+      max-width: 1100px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #ccc;
+    }
+
+    .legend-line {
+      width: 32px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    /* Notes */
+    .notes {
+      max-width: 1100px;
+      margin: 20px auto 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+
+    .note {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .note h3 {
+      font-size: 12px;
+      color: #f0a500;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .note ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .note ul li {
+      font-size: 12px;
+      color: #aaa;
+      padding: 3px 0;
+      padding-left: 14px;
+      position: relative;
+    }
+
+    .note ul li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: #555;
+    }
+
+    .warning { border-color: #ff5252; }
+    .warning h3 { color: #ff5252; }
+  </style>
+</head>
+<body>
+
+<h1>DTT-72 + ESP32 Wiring Diagram</h1>
+<p class="subtitle">230V AC Temperature Controller controlled via ESP32 GPIO → JQC-3F Relay → SSR-25DA → Heater</p>
+
+<div class="diagram">
+<svg viewBox="0 0 1100 620" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- ── MAINS 230V ── -->
+  <rect class="comp mains" x="20" y="40" width="130" height="80" rx="10"/>
+  <text x="85" y="63" class="comp-title" fill="#ffeb3b" text-anchor="middle">230V AC MAINS</text>
+  <text x="35" y="85"  class="pin-label">LIVE (L)</text>
+  <text x="35" y="105" class="pin-label">NEUTRAL (N)</text>
+  <circle cx="155" cy="82"  r="4" fill="#ff5252"/>
+  <circle cx="155" cy="102" r="4" fill="#5c8aff"/>
+
+  <!-- ── FUSE ── -->
+  <rect class="comp fuse" x="220" y="58" width="80" height="36" rx="8"/>
+  <text x="260" y="74"  class="comp-title" fill="#ff9800" text-anchor="middle">FUSE</text>
+  <text x="260" y="88"  class="pin-label"  fill="#888"   text-anchor="middle">10A Glass</text>
+  <circle cx="218" cy="76" r="4" fill="#ff5252"/>
+  <circle cx="302" cy="76" r="4" fill="#ff5252"/>
+
+  <!-- Live: mains → fuse -->
+  <line x1="155" y1="82" x2="218" y2="76" class="wire-live"/>
+  <!-- Live: fuse → JQC relay COM -->
+  <line x1="302" y1="76" x2="370" y2="76" class="wire-live"/>
+
+  <!-- ── JQC-3F RELAY ── -->
+  <rect class="comp relay" x="370" y="40" width="150" height="130" rx="10"/>
+  <text x="445" y="62"  class="comp-title" fill="#5c8aff" text-anchor="middle">JQC-3F RELAY</text>
+  <text x="445" y="78"  class="pin-label"  fill="#888"   text-anchor="middle">Active-LOW 5V</text>
+
+  <text x="385" y="100" class="pin-label">IN</text>
+  <text x="385" y="118" class="pin-label">VCC</text>
+  <text x="385" y="136" class="pin-label">GND</text>
+  <text x="385" y="155" class="pin-label">COM</text>
+
+  <text x="500" y="100" class="pin-label" text-anchor="end">NO</text>
+
+  <circle cx="382" cy="97"  r="4" fill="#4caf50"/>
+  <circle cx="382" cy="115" r="4" fill="#ff9800"/>
+  <circle cx="382" cy="132" r="4" fill="#888"/>
+  <circle cx="382" cy="152" r="4" fill="#ff5252"/>
+  <circle cx="522" cy="97"  r="4" fill="#ff5252"/>
+
+  <!-- Live: fuse → relay COM -->
+  <line x1="302" y1="76" x2="382" y2="152" class="wire-live"/>
+
+  <!-- ── ESP32 ── -->
+  <rect class="comp esp32" x="20" y="200" width="160" height="180" rx="10"/>
+  <text x="100" y="222" class="comp-title" fill="#4caf50" text-anchor="middle">ESP32 DEV KIT</text>
+
+  <text x="35"  y="248" class="pin-label">GPIO 27</text>
+  <text x="35"  y="268" class="pin-label">5V</text>
+  <text x="35"  y="288" class="pin-label">GND</text>
+  <text x="35"  y="318" class="pin-label">GPIO 18 (CLK)</text>
+  <text x="35"  y="338" class="pin-label">GPIO 19 (DO)</text>
+  <text x="35"  y="358" class="pin-label">GPIO 5 (CS1)</text>
+  <text x="35"  y="373" class="pin-label">3.3V</text>
+
+  <circle cx="182" cy="245" r="4" fill="#4caf50"/>
+  <circle cx="182" cy="265" r="4" fill="#ff9800"/>
+  <circle cx="182" cy="285" r="4" fill="#888"/>
+  <circle cx="182" cy="315" r="4" fill="#4caf50"/>
+  <circle cx="182" cy="335" r="4" fill="#4caf50"/>
+  <circle cx="182" cy="355" r="4" fill="#4caf50"/>
+  <circle cx="182" cy="370" r="4" fill="#ff9800"/>
+
+  <!-- ESP32 GPIO27 → relay IN -->
+  <path d="M182,245 C280,245 280,97 382,97" class="wire-gpio"/>
+  <!-- ESP32 5V → relay VCC -->
+  <path d="M182,265 C290,265 290,115 382,115" class="wire-5v"/>
+  <!-- ESP32 GND → relay GND -->
+  <path d="M182,285 C300,285 300,132 382,132" class="wire-gnd"/>
+
+  <!-- ── DTT-72 ── -->
+  <rect class="comp dtt72" x="550" y="30" width="200" height="200" rx="10"/>
+  <text x="650" y="52"  class="comp-title" fill="#f0a500" text-anchor="middle">DTT-72</text>
+  <text x="650" y="68"  class="pin-label"  fill="#888"   text-anchor="middle">230V Temp Controller</text>
+
+  <text x="565" y="95"  class="pin-label">L (Live in)</text>
+  <text x="565" y="115" class="pin-label">N (Neutral)</text>
+  <text x="565" y="145" class="pin-label">IN− (T/C −)</text>
+  <text x="565" y="163" class="pin-label">IN+ (T/C +)</text>
+  <text x="565" y="193" class="pin-label">OUT− (Relay −)</text>
+  <text x="565" y="210" class="pin-label">OUT+ (Relay +)</text>
+
+  <circle cx="548" cy="92"  r="4" fill="#ff5252"/>
+  <circle cx="548" cy="112" r="4" fill="#5c8aff"/>
+  <circle cx="548" cy="142" r="4" fill="#ce93d8"/>
+  <circle cx="548" cy="160" r="4" fill="#ce93d8"/>
+  <circle cx="548" cy="190" r="4" fill="#f0a500"/>
+  <circle cx="548" cy="207" r="4" fill="#f0a500"/>
+
+  <!-- Relay NO → DTT-72 L -->
+  <line x1="522" y1="97" x2="548" y2="92" class="wire-live"/>
+
+  <!-- Neutral: mains → DTT-72 N (long horizontal) -->
+  <path d="M155,102 L155,112 L548,112" class="wire-neutral"/>
+
+  <!-- ── THERMOCOUPLE (K-TYPE) ── -->
+  <rect class="comp thermo" x="550" y="280" width="200" height="80" rx="10"/>
+  <text x="650" y="302" class="comp-title" fill="#ce93d8" text-anchor="middle">K-TYPE THERMOCOUPLE</text>
+  <text x="565" y="324" class="pin-label">+ (RED)</text>
+  <text x="565" y="344" class="pin-label">− (BLUE/YELLOW)</text>
+
+  <circle cx="548" cy="321" r="4" fill="#ce93d8"/>
+  <circle cx="548" cy="341" r="4" fill="#ce93d8"/>
+  <circle cx="752" cy="321" r="4" fill="#ce93d8"/>
+  <circle cx="752" cy="341" r="4" fill="#ce93d8"/>
+
+  <!-- Thermocouple → DTT-72 IN -->
+  <line x1="752" y1="321" x2="780" y2="321" class="wire-thermo"/>
+  <line x1="780" y1="321" x2="780" y2="160" class="wire-thermo"/>
+  <line x1="780" y1="160" x2="752" y2="160" class="wire-thermo"/>
+
+  <line x1="752" y1="341" x2="790" y2="341" class="wire-thermo"/>
+  <line x1="790" y1="341" x2="790" y2="142" class="wire-thermo"/>
+  <line x1="790" y1="142" x2="752" y2="142" class="wire-thermo"/>
+
+  <!-- right side pins of DTT72 -->
+  <circle cx="752" cy="92"  r="4" fill="#888"/>
+  <circle cx="752" cy="112" r="4" fill="#888"/>
+  <circle cx="752" cy="142" r="4" fill="#ce93d8"/>
+  <circle cx="752" cy="160" r="4" fill="#ce93d8"/>
+  <circle cx="752" cy="190" r="4" fill="#f0a500"/>
+  <circle cx="752" cy="207" r="4" fill="#f0a500"/>
+
+  <!-- ── SSR-25DA ── -->
+  <rect class="comp ssr" x="850" y="30" width="200" height="160" rx="10"/>
+  <text x="950" y="52"  class="comp-title" fill="#00bcd4" text-anchor="middle">SSR-25DA</text>
+  <text x="950" y="68"  class="pin-label"  fill="#888"   text-anchor="middle">Solid State Relay 25A</text>
+
+  <text x="865" y="98"  class="pin-label">PIN 3 (DC +)</text>
+  <text x="865" y="116" class="pin-label">PIN 4 (DC −)</text>
+  <text x="865" y="148" class="pin-label">PIN 1 (AC in)</text>
+  <text x="865" y="168" class="pin-label">PIN 2 (AC out)</text>
+
+  <circle cx="848" cy="95"  r="4" fill="#f0a500"/>
+  <circle cx="848" cy="113" r="4" fill="#f0a500"/>
+  <circle cx="848" cy="145" r="4" fill="#ff5252"/>
+  <circle cx="848" cy="165" r="4" fill="#ff5252"/>
+
+  <!-- DTT-72 OUT+ → SSR PIN3 -->
+  <path d="M752,207 L800,207 L800,95 L848,95" class="wire-signal"/>
+  <!-- DTT-72 OUT− → SSR PIN4 -->
+  <path d="M752,190 L810,190 L810,113 L848,113" class="wire-signal"/>
+
+  <!-- 230V Live → SSR PIN1 (AC in) -->
+  <path d="M155,82 L155,530 L820,530 L820,145 L848,145" class="wire-live" stroke-dasharray="8,4"/>
+
+  <!-- ── HEATER ── -->
+  <rect class="comp heater" x="850" y="240" width="200" height="80" rx="10"/>
+  <text x="950" y="264" class="comp-title" fill="#ff5252" text-anchor="middle">HEATER ELEMENT</text>
+  <text x="950" y="282" class="pin-label"  fill="#888"   text-anchor="middle">230V AC Load</text>
+  <text x="865" y="304" class="pin-label">WIRE 1</text>
+  <text x="865" y="318" class="pin-label">WIRE 2 (Neutral)</text>
+
+  <circle cx="848" cy="301" r="4" fill="#ff5252"/>
+  <circle cx="848" cy="315" r="4" fill="#5c8aff"/>
+
+  <!-- SSR PIN2 → Heater wire1 -->
+  <line x1="950" y1="190" x2="950" y2="230" class="wire-live"/>
+  <line x1="848" y1="165" x2="848" y2="301" class="wire-live"/>
+
+  <!-- Heater wire2 → Neutral -->
+  <path d="M848,315 L830,315 L830,550 L155,550 L155,112" class="wire-neutral" stroke-dasharray="8,4"/>
+
+  <!-- SSR right pins -->
+  <circle cx="1052" cy="95"  r="4" fill="#888"/>
+  <circle cx="1052" cy="113" r="4" fill="#888"/>
+  <circle cx="1052" cy="145" r="4" fill="#888"/>
+  <circle cx="1052" cy="165" r="4" fill="#888"/>
+
+  <!-- ── MAX6675 (optional, for ESP32 temp reading) ── -->
+  <rect class="comp thermo" x="20" y="430" width="200" height="130" rx="10"/>
+  <text x="120" y="452" class="comp-title" fill="#ce93d8" text-anchor="middle">MAX6675</text>
+  <text x="120" y="468" class="pin-label"  fill="#888"   text-anchor="middle">Optional: ESP32 temp read</text>
+
+  <text x="35"  y="492" class="pin-label">CLK → GPIO18</text>
+  <text x="35"  y="510" class="pin-label">DO  → GPIO19</text>
+  <text x="35"  y="528" class="pin-label">CS  → GPIO5</text>
+  <text x="35"  y="546" class="pin-label">VCC → 3.3V</text>
+  <text x="35"  y="562" class="pin-label">GND → GND</text>
+
+  <!-- Wire from ESP32 to MAX6675 -->
+  <line x1="182" y1="315" x2="220" y2="492" class="wire-gpio" stroke-dasharray="4,3"/>
+  <line x1="182" y1="335" x2="220" y2="510" class="wire-gpio" stroke-dasharray="4,3"/>
+  <line x1="182" y1="355" x2="220" y2="528" class="wire-gpio" stroke-dasharray="4,3"/>
+  <line x1="182" y1="370" x2="220" y2="546" class="wire-5v"   stroke-dasharray="4,3"/>
+
+  <!-- Labels on wires -->
+  <text x="310" y="88"  fill="#ff5252" font-size="10" font-weight="600">LIVE (switched)</text>
+  <text x="205" y="108" fill="#5c8aff" font-size="10" font-weight="600">NEUTRAL</text>
+  <text x="230" y="238" fill="#4caf50" font-size="10" font-weight="600">GPIO27 (control)</text>
+  <text x="760" y="185" fill="#f0a500" font-size="10" font-weight="600">DTT-72 relay out</text>
+  <text x="760" y="50"  fill="#ff5252" font-size="10">Live (dashed = long run)</text>
+
+</svg>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-line" style="background:#ff5252;"></div>
+    230V Live
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#5c8aff;"></div>
+    230V Neutral
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#4caf50;"></div>
+    ESP32 GPIO (3.3V logic)
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#ff9800;"></div>
+    5V Power
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#888;"></div>
+    GND
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#f0a500; border-top: 2px dashed #f0a500; background:none;"></div>
+    DTT-72 Output Signal
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#ce93d8;"></div>
+    Thermocouple
+  </div>
+</div>
+
+<!-- Notes -->
+<div class="notes">
+  <div class="note warning">
+    <h3>Safety — Read First</h3>
+    <ul>
+      <li>Always put 10A fuse on 230V Live before relay</li>
+      <li>Never touch 230V wiring while powered</li>
+      <li>Earth/ground all metal enclosures</li>
+      <li>Use 10A rated wire for 230V lines</li>
+      <li>SSR-25DA gets hot — mount on heatsink</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <h3>ESP32 → JQC-3F Relay</h3>
+    <ul>
+      <li>GPIO27 → IN (active-LOW: LOW = relay ON)</li>
+      <li>5V → VCC</li>
+      <li>GND → GND</li>
+      <li>COM ← 230V Live (after fuse)</li>
+      <li>NO → DTT-72 Live input</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <h3>DTT-72 Connections</h3>
+    <ul>
+      <li>L ← JQC-3F NO (switched Live)</li>
+      <li>N ← 230V Neutral (direct)</li>
+      <li>IN+ ← Thermocouple + (red)</li>
+      <li>IN− ← Thermocouple − (blue)</li>
+      <li>OUT+ → SSR-25DA PIN 3</li>
+      <li>OUT− → SSR-25DA PIN 4</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <h3>SSR-25DA Connections</h3>
+    <ul>
+      <li>PIN 3 (+) ← DTT-72 OUT+</li>
+      <li>PIN 4 (−) ← DTT-72 OUT−</li>
+      <li>PIN 1 (AC) ← 230V Live (direct)</li>
+      <li>PIN 2 (AC) → Heater wire 1</li>
+      <li>Heater wire 2 → 230V Neutral</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <h3>MAX6675 (Optional)</h3>
+    <ul>
+      <li>Only needed if ESP32 must read temperature</li>
+      <li>DTT-72 controls heater independently</li>
+      <li>CLK → GPIO18, DO → GPIO19, CS → GPIO5</li>
+      <li>VCC → 3.3V, GND → GND</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <h3>DTT-72 Front Panel Setup</h3>
+    <ul>
+      <li>Set sensor type to K (thermocouple)</li>
+      <li>Set SV (set value) to your target temp</li>
+      <li>Control action: ON-OFF</li>
+      <li>ESP32 only switches power — not setpoint</li>
+      <li>Allow 3s boot time after power-on</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

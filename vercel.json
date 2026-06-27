@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd webapp-next && npm install && npm run build",
+  "outputDirectory": "webapp-next/.next",
+  "installCommand": "cd webapp-next && npm install",
+  "framework": "nextjs",
+  "rootDirectory": "webapp-next"
+}

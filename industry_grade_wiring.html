@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lyra Coffee Machine — Industry Grade Wiring Reference</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; padding: 24px; }
+
+    h1 { text-align: center; font-size: 24px; color: #f0a500; margin-bottom: 4px; letter-spacing: 1px; }
+    .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 32px; }
+
+    h2 { font-size: 14px; color: #f0a500; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; border-left: 3px solid #f0a500; padding-left: 10px; }
+    h3 { font-size: 12px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+    .grid { display: grid; gap: 16px; max-width: 1200px; margin: 0 auto 24px; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+    .card {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .card.warning { border-color: #ff5252; }
+    .card.success { border-color: #4caf50; }
+    .card.info    { border-color: #5c8aff; }
+    .card.orange  { border-color: #f0a500; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #1a1a1a; color: #f0a500; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 7px 10px; border-bottom: 1px solid #1a1a1a; color: #ccc; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #151515; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .badge-green  { background: #1a3a1a; color: #4caf50; }
+    .badge-red    { background: #3a1a1a; color: #ff5252; }
+    .badge-orange { background: #3a2a0a; color: #f0a500; }
+    .badge-blue   { background: #1a1a3a; color: #5c8aff; }
+    .badge-purple { background: #2a1a3a; color: #ce93d8; }
+
+    .wire {
+      display: inline-block;
+      width: 28px;
+      height: 4px;
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    .diagram {
+      background: #0d0d0d;
+      border: 1px solid #1e1e1e;
+      border-radius: 10px;
+      padding: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.8;
+      color: #ccc;
+      overflow-x: auto;
+      white-space: pre;
+      max-width: 1200px;
+      margin: 0 auto 24px;
+    }
+
+    .zone {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .zone-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #222;
+    }
+    .zone-water  .zone-title { color: #5c8aff; }
+    .zone-milk   .zone-title { color: #ce93d8; }
+    .zone-decoct .zone-title { color: #f0a500; }
+
+    ul { list-style: none; padding: 0; }
+    ul li { font-size: 12px; color: #aaa; padding: 3px 0 3px 14px; position: relative; }
+    ul li::before { content: '›'; position: absolute; left: 0; color: #555; }
+
+    .section-title {
+      max-width: 1200px;
+      margin: 0 auto 16px;
+      font-size: 18px;
+      color: #f0a500;
+      border-bottom: 1px solid #222;
+      padding-bottom: 8px;
+    }
+
+    .pin-chip {
+      display: inline-block;
+      background: #1a2a1a;
+      color: #4caf50;
+      border: 1px solid #4caf50;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 10px;
+      font-family: monospace;
+      font-weight: 700;
+    }
+
+    footer {
+      text-align: center;
+      color: #444;
+      font-size: 11px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #1a1a1a;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Lyra Coffee Machine</h1>
+<p class="subtitle">Industry Grade Wiring Reference — ESP32 + 3-Channel Temperature Control + Water Level + Relay Control</p>
+
+<!-- ── SAFETY FIRST ── -->
+<div style="max-width:1200px;margin:0 auto 24px;">
+  <div class="card warning">
+    <h2 style="color:#ff5252;border-color:#ff5252;">Safety Requirements — Read Before Wiring</h2>
+    <div class="grid grid-4" style="margin-top:12px;">
+      <ul>
+        <li>MCB 10A on every 240V Live line</li>
+        <li>RCCB 25A 30mA for earth leakage</li>
+        <li>Earth all metal enclosures</li>
+        <li>IP65 rated enclosure box</li>
+      </ul>
+      <ul>
+        <li>1.5mm min wire for 240V lines</li>
+        <li>Ferrule crimps on all wire ends</li>
+        <li>DIN rail terminal blocks</li>
+        <li>Never touch 240V while powered</li>
+      </ul>
+      <ul>
+        <li>SSR-25DA on heatsink always</li>
+        <li>Fuse on each heater circuit</li>
+        <li>Label all wires with markers</li>
+        <li>Test with multimeter before power</li>
+      </ul>
+      <ul>
+        <li>Neutral never through relay</li>
+        <li>E-stop button on panel</li>
+        <li>Pilot lamps for each zone</li>
+        <li>Separate ESP32 5V SMPS</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── COMPONENTS LIST ── -->
+<p class="section-title">Component List</p>
+<div class="grid grid-2" style="max-width:1200px;margin:0 auto 24px;">
+
+  <div class="card">
+    <h2>ESP32 Control Side</h2>
+    <table>
+      <tr><th>Component</th><th>Model</th><th>Qty</th><th>Purpose</th></tr>
+      <tr><td>ESP32 Dev Kit V1</td><td>DOIT DevKit V1</td><td>1</td><td>Main controller</td></tr>
+      <tr><td>Thermocouple Amplifier</td><td>MAX6675</td><td>3</td><td>Temperature reading</td></tr>
+      <tr><td>K-type Thermocouple</td><td>SS304 probe</td><td>3</td><td>Temp sensor per zone</td></tr>
+      <tr><td>Relay Module</td><td>HW-307 5V</td><td>3</td><td>Switch DTT-72 power</td></tr>
+      <tr><td>5V 2A SMPS</td><td>HLK-5M05</td><td>1</td><td>Power ESP32 + relays</td></tr>
+      <tr><td>10kΩ Resistor</td><td>1/4W</td><td>3</td><td>Pull-up on relay IN</td></tr>
+      <tr><td>Push Button</td><td>Momentary NO</td><td>3</td><td>Manual override</td></tr>
+      <tr><td>DIN Rail</td><td>35mm</td><td>1</td><td>Mount components</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>240V AC Side</h2>
+    <table>
+      <tr><th>Component</th><th>Model</th><th>Qty</th><th>Purpose</th></tr>
+      <tr><td>MCB Circuit Breaker</td><td>10A Single Pole</td><td>4</td><td>Main + 3 zone protection</td></tr>
+      <tr><td>RCCB Earth Leakage</td><td>25A 30mA</td><td>1</td><td>Shock protection</td></tr>
+      <tr><td>Solid State Relay</td><td>SSR-25DA 25A</td><td>3</td><td>Heater switching</td></tr>
+      <tr><td>SSR Heatsink</td><td>For SSR-25DA</td><td>3</td><td>Cooling SSR</td></tr>
+      <tr><td>DTT-72 Temp Controller</td><td>DTT-72</td><td>3</td><td>Backup temp display</td></tr>
+      <tr><td>Water Level Sensor</td><td>SS316 Float</td><td>2</td><td>Water + decoction tank</td></tr>
+      <tr><td>Water Level Sensor</td><td>XKC-Y25-V</td><td>1</td><td>Milk container</td></tr>
+      <tr><td>IP65 Enclosure</td><td>300x400x150mm</td><td>1</td><td>House all components</td></tr>
+      <tr><td>DIN Terminal Blocks</td><td>UK2.5B</td><td>20</td><td>Wire connections</td></tr>
+      <tr><td>Wire 1.5mm</td><td>Red/Blue/Green</td><td>5m</td><td>240V wiring</td></tr>
+      <tr><td>Ferrule Crimps</td><td>1.5mm</td><td>50</td><td>Wire end protection</td></tr>
+      <tr><td>Emergency Stop</td><td>Red mushroom</td><td>1</td><td>Safety cutoff</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- ── ESP32 PIN MAP ── -->
+<p class="section-title">ESP32 Pin Map</p>
+<div class="grid grid-2" style="max-width:1200px;margin:0 auto 24px;">
+
+  <div class="card">
+    <h2>Output Pins — Relays</h2>
+    <table>
+      <tr><th>GPIO</th><th>Component</th><th>Signal</th><th>Active</th></tr>
+      <tr><td><span class="pin-chip">GPIO21</span></td><td>HW-307 Relay #1</td><td>Water Heater</td><td><span class="badge badge-red">LOW</span></td></tr>
+      <tr><td><span class="pin-chip">GPIO22</span></td><td>HW-307 Relay #2</td><td>Milk Heater</td><td><span class="badge badge-red">LOW</span></td></tr>
+      <tr><td><span class="pin-chip">GPIO23</span></td><td>HW-307 Relay #3</td><td>Decoction Heater</td><td><span class="badge badge-red">LOW</span></td></tr>
+    </table>
+
+    <h2 style="margin-top:16px;">Input Pins — Buttons</h2>
+    <table>
+      <tr><th>GPIO</th><th>Component</th><th>Signal</th><th>Active</th></tr>
+      <tr><td><span class="pin-chip">GPIO33</span></td><td>Button 1</td><td>Water zone override</td><td><span class="badge badge-red">LOW</span></td></tr>
+      <tr><td><span class="pin-chip">GPIO25</span></td><td>Button 2</td><td>Milk zone override</td><td><span class="badge badge-red">LOW</span></td></tr>
+      <tr><td><span class="pin-chip">GPIO26</span></td><td>Button 3</td><td>Decoction override</td><td><span class="badge badge-red">LOW</span></td></tr>
+    </table>
+
+    <h2 style="margin-top:16px;">Input Pins — Water Level</h2>
+    <table>
+      <tr><th>GPIO</th><th>Sensor</th><th>Zone</th><th>LOW =</th></tr>
+      <tr><td><span class="pin-chip">GPIO35</span></td><td>Float Switch SS316</td><td>Water boiler</td><td><span class="badge badge-green">PRESENT</span></td></tr>
+      <tr><td><span class="pin-chip">GPIO36</span></td><td>XKC-Y25-V</td><td>Milk container</td><td><span class="badge badge-green">PRESENT</span></td></tr>
+      <tr><td><span class="pin-chip">GPIO39</span></td><td>Float Switch SS316</td><td>Decoction tank</td><td><span class="badge badge-green">PRESENT</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>SPI Bus — MAX6675 Thermocouples</h2>
+    <table>
+      <tr><th>GPIO</th><th>Signal</th><th>Connects to</th></tr>
+      <tr><td><span class="pin-chip">GPIO18</span></td><td>CLK (shared)</td><td>All 3 MAX6675 CLK</td></tr>
+      <tr><td><span class="pin-chip">GPIO19</span></td><td>DO/MISO (shared)</td><td>All 3 MAX6675 DO</td></tr>
+      <tr><td><span class="pin-chip">GPIO5</span></td><td>CS1</td><td>MAX6675 #1 Water</td></tr>
+      <tr><td><span class="pin-chip">GPIO16</span></td><td>CS2</td><td>MAX6675 #2 Milk</td></tr>
+      <tr><td><span class="pin-chip">GPIO17</span></td><td>CS3</td><td>MAX6675 #3 Decoction</td></tr>
+    </table>
+
+    <h2 style="margin-top:16px;">Power Pins</h2>
+    <table>
+      <tr><th>Pin</th><th>Voltage</th><th>Powers</th></tr>
+      <tr><td><span class="pin-chip">VIN</span></td><td>5V</td><td>All HW-307 relay VCC</td></tr>
+      <tr><td><span class="pin-chip">3.3V</span></td><td>3.3V</td><td>All MAX6675 VCC</td></tr>
+      <tr><td><span class="pin-chip">GND</span></td><td>0V</td><td>All GND common rail</td></tr>
+    </table>
+
+    <h2 style="margin-top:16px;">Pull-up Resistors (boot safety)</h2>
+    <table>
+      <tr><th>Resistor</th><th>From</th><th>To</th><th>Purpose</th></tr>
+      <tr><td>10kΩ</td><td>3.3V</td><td>GPIO21</td><td>Keep relay OFF on boot</td></tr>
+      <tr><td>10kΩ</td><td>3.3V</td><td>GPIO22</td><td>Keep relay OFF on boot</td></tr>
+      <tr><td>10kΩ</td><td>3.3V</td><td>GPIO23</td><td>Keep relay OFF on boot</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- ── ZONE WIRING ── -->
+<p class="section-title">Zone Wiring — 3 Heater Zones</p>
+<div class="grid grid-3" style="max-width:1200px;margin:0 auto 24px;">
+
+  <div class="zone zone-water">
+    <div class="zone-title">Zone 1 — Water Boiler (92°C)</div>
+    <table>
+      <tr><th>From</th><th>To</th></tr>
+      <tr><td>240V Live</td><td>MCB #1 IN</td></tr>
+      <tr><td>MCB #1 OUT</td><td>HW-307 #1 COM</td></tr>
+      <tr><td>HW-307 #1 NO</td><td>DTT-72 #1 PIN L</td></tr>
+      <tr><td>240V Neutral</td><td>DTT-72 #1 PIN N</td></tr>
+      <tr><td>DTT-72 #1 OUT+</td><td>SSR-25DA #1 PIN3</td></tr>
+      <tr><td>DTT-72 #1 OUT−</td><td>SSR-25DA #1 PIN4</td></tr>
+      <tr><td>240V Live</td><td>SSR-25DA #1 PIN1</td></tr>
+      <tr><td>SSR-25DA #1 PIN2</td><td>Water Heater L</td></tr>
+      <tr><td>240V Neutral</td><td>Water Heater N</td></tr>
+      <tr><td>Float Switch</td><td>GPIO35 + GND</td></tr>
+      <tr><td>ESP32 GPIO21</td><td>HW-307 #1 IN</td></tr>
+      <tr><td>K-type probe</td><td>MAX6675 #1 → GPIO5</td></tr>
+    </table>
+  </div>
+
+  <div class="zone zone-milk">
+    <div class="zone-title">Zone 2 — Milk Container (60°C)</div>
+    <table>
+      <tr><th>From</th><th>To</th></tr>
+      <tr><td>240V Live</td><td>MCB #2 IN</td></tr>
+      <tr><td>MCB #2 OUT</td><td>HW-307 #2 COM</td></tr>
+      <tr><td>HW-307 #2 NO</td><td>DTT-72 #2 PIN L</td></tr>
+      <tr><td>240V Neutral</td><td>DTT-72 #2 PIN N</td></tr>
+      <tr><td>DTT-72 #2 OUT+</td><td>SSR-25DA #2 PIN3</td></tr>
+      <tr><td>DTT-72 #2 OUT−</td><td>SSR-25DA #2 PIN4</td></tr>
+      <tr><td>240V Live</td><td>SSR-25DA #2 PIN1</td></tr>
+      <tr><td>SSR-25DA #2 PIN2</td><td>Milk Heater L</td></tr>
+      <tr><td>240V Neutral</td><td>Milk Heater N</td></tr>
+      <tr><td>XKC-Y25-V OUT</td><td>GPIO36</td></tr>
+      <tr><td>ESP32 GPIO22</td><td>HW-307 #2 IN</td></tr>
+      <tr><td>K-type probe</td><td>MAX6675 #2 → GPIO16</td></tr>
+    </table>
+  </div>
+
+  <div class="zone zone-decoct">
+    <div class="zone-title">Zone 3 — Decoction Tank (75°C)</div>
+    <table>
+      <tr><th>From</th><th>To</th></tr>
+      <tr><td>240V Live</td><td>MCB #3 IN</td></tr>
+      <tr><td>MCB #3 OUT</td><td>HW-307 #3 COM</td></tr>
+      <tr><td>HW-307 #3 NO</td><td>DTT-72 #3 PIN L</td></tr>
+      <tr><td>240V Neutral</td><td>DTT-72 #3 PIN N</td></tr>
+      <tr><td>DTT-72 #3 OUT+</td><td>SSR-25DA #3 PIN3</td></tr>
+      <tr><td>DTT-72 #3 OUT−</td><td>SSR-25DA #3 PIN4</td></tr>
+      <tr><td>240V Live</td><td>SSR-25DA #3 PIN1</td></tr>
+      <tr><td>SSR-25DA #3 PIN2</td><td>Decoct Heater L</td></tr>
+      <tr><td>240V Neutral</td><td>Decoct Heater N</td></tr>
+      <tr><td>Float Switch</td><td>GPIO39 + GND</td></tr>
+      <tr><td>ESP32 GPIO23</td><td>HW-307 #3 IN</td></tr>
+      <tr><td>K-type probe</td><td>MAX6675 #3 → GPIO17</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- ── WIRING DIAGRAM ── -->
+<p class="section-title">Full System Wiring Diagram</p>
+<div class="diagram">
+240V MAINS
+│
+├── LIVE (L) ──→ [RCCB 25A 30mA] ──→ [MCB MAIN 10A] ──→ ┬──→ [MCB Z1 10A] ──→ HW-307 #1 COM
+│                                                          ├──→ [MCB Z2 10A] ──→ HW-307 #2 COM
+│                                                          ├──→ [MCB Z3 10A] ──→ HW-307 #3 COM
+│                                                          └──→ SSR #1 PIN1 / SSR #2 PIN1 / SSR #3 PIN1
+│
+└── NEUTRAL (N) ──────────────────────────────────────────→ DTT-72 #1,#2,#3 PIN N
+                                                            Heater #1,#2,#3 Neutral
+
+HW-307 #1 NO ──→ DTT-72 #1 PIN L ──→ DTT-72 #1 OUT+ ──→ SSR #1 PIN3(+)
+                                      DTT-72 #1 OUT− ──→ SSR #1 PIN4(−)
+                                      SSR #1 PIN2    ──→ Water Heater LIVE
+                                      K-type #1      ──→ DTT-72 #1 IN+/IN−
+
+HW-307 #2 NO ──→ DTT-72 #2 PIN L ──→ DTT-72 #2 OUT+ ──→ SSR #2 PIN3(+)
+                                      DTT-72 #2 OUT− ──→ SSR #2 PIN4(−)
+                                      SSR #2 PIN2    ──→ Milk Heater LIVE
+                                      K-type #2      ──→ DTT-72 #2 IN+/IN−
+
+HW-307 #3 NO ──→ DTT-72 #3 PIN L ──→ DTT-72 #3 OUT+ ──→ SSR #3 PIN3(+)
+                                      DTT-72 #3 OUT− ──→ SSR #3 PIN4(−)
+                                      SSR #3 PIN2    ──→ Decoction Heater LIVE
+                                      K-type #3      ──→ DTT-72 #3 IN+/IN−
+
+ESP32 DevKit V1
+├── GPIO21 ──[10kΩ to 3.3V]──→ HW-307 #1 IN    (Water relay)
+├── GPIO22 ──[10kΩ to 3.3V]──→ HW-307 #2 IN    (Milk relay)
+├── GPIO23 ──[10kΩ to 3.3V]──→ HW-307 #3 IN    (Decoction relay)
+├── GPIO18 ──────────────────→ MAX6675 #1,#2,#3 CLK (shared)
+├── GPIO19 ──────────────────→ MAX6675 #1,#2,#3 DO  (shared)
+├── GPIO5  ──────────────────→ MAX6675 #1 CS    (Water)
+├── GPIO16 ──────────────────→ MAX6675 #2 CS    (Milk)
+├── GPIO17 ──────────────────→ MAX6675 #3 CS    (Decoction)
+├── GPIO35 ──────────────────→ Float Switch Water boiler
+├── GPIO36 ──────────────────→ XKC-Y25-V Milk container
+├── GPIO39 ──────────────────→ Float Switch Decoction tank
+├── GPIO33 ──────────────────→ Button 1 (Water override)
+├── GPIO25 ──────────────────→ Button 2 (Milk override)
+├── GPIO26 ──────────────────→ Button 3 (Decoct override)
+├── VIN    ──────────────────→ HW-307 #1,#2,#3 VCC (5V)
+├── 3.3V   ──────────────────→ MAX6675 #1,#2,#3 VCC
+└── GND    ──────────────────→ All GND (common rail)
+
+WATER LEVEL SENSORS
+├── Float Switch Water  : GPIO35 ←→ GND  (INPUT_PULLUP, LOW=water present)
+├── XKC-Y25-V Milk      : VCC=5V  GND=GND  OUT→GPIO36
+└── Float Switch Decoct : GPIO39 ←→ GND  (INPUT_PULLUP, LOW=water present)
+</div>
+
+<!-- ── TEMPERATURE TARGETS ── -->
+<p class="section-title">Temperature Targets & Hysteresis</p>
+<div class="grid grid-3" style="max-width:1200px;margin:0 auto 24px;">
+  <div class="card info">
+    <h2 style="color:#5c8aff;border-color:#5c8aff;">Zone 1 — Water Boiler</h2>
+    <table>
+      <tr><th>Parameter</th><th>Value</th></tr>
+      <tr><td>Target temp</td><td>92°C</td></tr>
+      <tr><td>Hysteresis</td><td>3°C</td></tr>
+      <tr><td>Heater ON below</td><td>89°C</td></tr>
+      <tr><td>Heater OFF at</td><td>92°C</td></tr>
+      <tr><td>Sensor</td><td>MAX6675 + K-type</td></tr>
+      <tr><td>Relay GPIO</td><td>GPIO21</td></tr>
+    </table>
+  </div>
+  <div class="card" style="border-color:#ce93d8;">
+    <h2 style="color:#ce93d8;border-color:#ce93d8;">Zone 2 — Milk Container</h2>
+    <table>
+      <tr><th>Parameter</th><th>Value</th></tr>
+      <tr><td>Target temp</td><td>60°C</td></tr>
+      <tr><td>Hysteresis</td><td>3°C</td></tr>
+      <tr><td>Heater ON below</td><td>57°C</td></tr>
+      <tr><td>Heater OFF at</td><td>60°C</td></tr>
+      <tr><td>Sensor</td><td>MAX6675 + K-type</td></tr>
+      <tr><td>Relay GPIO</td><td>GPIO22</td></tr>
+    </table>
+  </div>
+  <div class="card orange">
+    <h2>Zone 3 — Decoction Tank</h2>
+    <table>
+      <tr><th>Parameter</th><th>Value</th></tr>
+      <tr><td>Target temp</td><td>75°C</td></tr>
+      <tr><td>Hysteresis</td><td>3°C</td></tr>
+      <tr><td>Heater ON below</td><td>72°C</td></tr>
+      <tr><td>Heater OFF at</td><td>75°C</td></tr>
+      <tr><td>Sensor</td><td>MAX6675 + K-type</td></tr>
+      <tr><td>Relay GPIO</td><td>GPIO23</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ── BUY LIST ── -->
+<p class="section-title">Buy List</p>
+<div class="card" style="max-width:1200px;margin:0 auto 24px;">
+  <table>
+    <tr><th>Component</th><th>Spec</th><th>Qty</th><th>Approx Cost</th><th>Where to Buy</th></tr>
+    <tr><td>MCB Circuit Breaker</td><td>10A Single Pole</td><td>4</td><td>₹150-300 each</td><td>Havells / Legrand / Schneider</td></tr>
+    <tr><td>RCCB</td><td>25A 30mA 2 pole</td><td>1</td><td>₹500-1200</td><td>Havells / Schneider</td></tr>
+    <tr><td>SSR-25DA</td><td>25A 240V AC</td><td>3</td><td>₹200-400 each</td><td>Amazon / Robu.in</td></tr>
+    <tr><td>SSR Heatsink</td><td>For SSR-25DA</td><td>3</td><td>₹100-200 each</td><td>Amazon / local</td></tr>
+    <tr><td>SS316 Float Switch</td><td>NC type, IP68</td><td>2</td><td>₹300-600 each</td><td>Indiamart / Amazon</td></tr>
+    <tr><td>XKC-Y25-V</td><td>5-24V non-contact</td><td>1</td><td>₹250-400</td><td>Amazon / Robu.in</td></tr>
+    <tr><td>IP65 Enclosure</td><td>300x400x150mm</td><td>1</td><td>₹800-1500</td><td>Indiamart / local</td></tr>
+    <tr><td>DIN Rail</td><td>35mm 1m</td><td>1</td><td>₹100-200</td><td>Local electrical shop</td></tr>
+    <tr><td>DIN Terminal Blocks</td><td>UK2.5B 2.5mm</td><td>20</td><td>₹20-40 each</td><td>Local electrical shop</td></tr>
+    <tr><td>Wire 1.5mm</td><td>Red + Blue + Green</td><td>5m each</td><td>₹15-25/m</td><td>Local electrical shop</td></tr>
+    <tr><td>Ferrule Crimps</td><td>1.5mm bootlace</td><td>1 box 50pc</td><td>₹100-200</td><td>Amazon / local</td></tr>
+    <tr><td>Emergency Stop</td><td>40mm red mushroom</td><td>1</td><td>₹150-300</td><td>Amazon / Indiamart</td></tr>
+    <tr><td>10kΩ Resistor</td><td>1/4W</td><td>10pc</td><td>₹5-10</td><td>Local electronics shop</td></tr>
+    <tr><td>HLK-5M05 SMPS</td><td>5V 1A DIN mount</td><td>1</td><td>₹300-500</td><td>Amazon / Robu.in</td></tr>
+  </table>
+</div>
+
+<!-- ── WIRE COLOR CODE ── -->
+<p class="section-title">Wire Color Code</p>
+<div class="card" style="max-width:1200px;margin:0 auto 24px;">
+  <div class="grid grid-4">
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+      <div class="wire" style="background:#ff5252;"></div>
+      <div><div style="font-size:12px;font-weight:700;color:#ff5252;">RED</div><div style="font-size:11px;color:#888;">240V Live</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+      <div class="wire" style="background:#5c8aff;"></div>
+      <div><div style="font-size:12px;font-weight:700;color:#5c8aff;">BLUE</div><div style="font-size:11px;color:#888;">240V Neutral</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+      <div class="wire" style="background:#4caf50;"></div>
+      <div><div style="font-size:12px;font-weight:700;color:#4caf50;">GREEN</div><div style="font-size:11px;color:#888;">Earth / Ground</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+      <div class="wire" style="background:#ff9800;"></div>
+      <div><div style="font-size:12px;font-weight:700;color:#ff9800;">ORANGE</div><div style="font-size:11px;color:#888;">5V DC Power</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+      <div class="wire" style="background:#888;"></div>
+      <div><div style="font-size:12px;font-weight:700;color:#888;">BLACK</div><div style="font-size:11px;color:#888;">GND / 0V DC</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+      <div class="wire" style="background:#ce93d8;"></div>
+      <div><div style="font-size:12px;font-weight:700;color:#ce93d8;">PURPLE</div><div style="font-size:11px;color:#888;">Thermocouple signal</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+      <div class="wire" style="background:#00bcd4;"></div>
+      <div><div style="font-size:12px;font-weight:700;color:#00bcd4;">CYAN</div><div style="font-size:11px;color:#888;">ESP32 GPIO signals</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+      <div class="wire" style="background:#f0a500;border-top:2px dashed #f0a500;background:none;"></div>
+      <div><div style="font-size:12px;font-weight:700;color:#f0a500;">YELLOW</div><div style="font-size:11px;color:#888;">DTT-72 relay output</div></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Lyra Coffee Machine — Industry Grade Wiring Reference &nbsp;|&nbsp;
+  ESP32 + MAX6675 + HW-307 + SSR-25DA + DTT-72 &nbsp;|&nbsp;
+  Always test low voltage before connecting 240V
+</footer>
+
+</body>
+</html>

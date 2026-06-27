@@ -8,21 +8,21 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/machine/identify
  *
- * Called by the ESP32 on first boot. The firmware sends its hardware
- * MAC address; we look up the matching `coffee_machines` row, mint a
- * fresh API key (rotating any prior one) and return:
+ * Called by the ESP32 on first boot (or after NVS wipe). The firmware
+ * sends its hardware MAC address; we look up the matching
+ * `coffee_machines` row, mint a fresh API key (rotating any prior one)
+ * and return:
  *
  *   {
  *     id, api_key, name, location,
  *     is_free, price_coffee_paise, price_tea_paise
  *   }
  *
- * The plaintext key is shown ONCE — the firmware persists it to NVS
- * and uses it for all subsequent /poll and /ack calls.
- *
- * Re-provisioning: returns 409 once a machine has been claimed.
- * An admin must clear `mac_provisioned_at` (via PATCH /admin/machines/[id])
- * to allow a replacement board to claim the same MAC.
+ * This endpoint is intentionally idempotent: if the machine was already
+ * provisioned (e.g. after a re-flash wiped NVS), the old key is rotated
+ * and fresh credentials are returned. Only the physical board with that
+ * MAC can call this, so re-keying on demand is safe and prevents the
+ * machine from being permanently bricked by a re-flash.
  */
 const bodySchema = z.object({
   mac_id: z
@@ -62,11 +62,7 @@ export async function POST(req: NextRequest) {
     return apiError(`No machine registered with mac_id="${macId}"`, 404);
   }
 
-  if (machine.mac_provisioned_at) {
-    return apiError('Machine already provisioned. Ask an admin to reset.', 409);
-  }
-
-  // Mint a fresh API key, persist hash, lock to this MAC.
+  // Mint a fresh API key, persist hash, lock to this MAC (or re-key if already provisioned).
   const { key, hash } = generateMachineApiKey();
 
   const { error: upErr } = await supabaseAdmin

@@ -4,24 +4,9 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: ['localhost:3000', process.env.NEXT_PUBLIC_APP_URL ?? ''],
     },
-    // Required for better-sqlite3 (native Node addon) to load in Next.js API routes.
-    serverComponentsExternalPackages: ['better-sqlite3'],
   },
-  // Disable SWC minification — use terser instead, which is more stable on ARM64
-  swcMinify: false,
-  // Don't download Google Fonts at build time — use browser fallback instead
+  // Don't download Google Fonts at build time
   optimizeFonts: false,
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // better-sqlite3 is a native addon loaded only at runtime on the Pi.
-      // Mark it external so webpack never tries to bundle or resolve it.
-      config.externals = [
-        ...(Array.isArray(config.externals) ? config.externals : [config.externals]),
-        'better-sqlite3',
-      ];
-    }
-    return config;
-  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
