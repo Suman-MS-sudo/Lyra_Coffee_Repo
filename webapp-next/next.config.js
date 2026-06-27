@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // better-sqlite3 is only used on Pi (LOCAL_MODE=true).
+      // On Vercel it is never loaded — mark as external so webpack skips it.
+      config.externals = [
+        ...(Array.isArray(config.externals) ? config.externals : [config.externals]),
+        'better-sqlite3',
+      ];
+    }
+    return config;
+  },
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', process.env.NEXT_PUBLIC_APP_URL ?? ''],
